@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends
 from uuid import UUID, uuid4
 from typing import Annotated, Dict, List
-from sqlmodel import Field, Session, SQLModel, create_engine, select
+from sqlmodel import Field, Session, SQLModel, create_engine, select, text
 
 class User(SQLModel, table=True):
     id: UUID | None = Field(default_factory=uuid4, primary_key=True)
@@ -73,6 +73,6 @@ async def delete_user(user_id: UUID, session: SessionDep):
 @app.get("/db-check")
 async def db_check():
     with Session(engine) as session:
-        result = session.exec(select(1)).scalar_one()
+        result = session.exec(text("SELECT 1")).scalar_one()
         return {"database_connected": True, "result": result}
 
