@@ -38,18 +38,18 @@ pip install "fastapi[standard]" sqlmodel uvicorn
 From the directory that contains `main.py` (or from the repository root using `--app-dir`), run:
 
 ```bash
-# this will run the app in development mode, tailored so quick changes in code automatically refresh the api and load the updates
+# this will run the app in development mode, tailored so quick changes in code automatically refresh the API and load the updates
 
 uv run fastapi dev main.py
 ```
 
 For non-development purposes, run:
 
+```bash
+# this will run the app in production mode, tailored for faster response time, but does'nt refresh the changes automatically
 
-
-
-
-
+uv run fastapi run main.py
+```
 
 Open `http://127.0.0.1:8000/docs` to view the interactive API docs provided by FastAPI.
 
