@@ -7,15 +7,14 @@ from sqlmodel import Field, Session, SQLModel, create_engine, select, text
 import hashlib
 import jwt
 from dotenv import load_dotenv
+from contextlib import asynccontextmanager
 
 load_dotenv()
 
-def get_required_env(name: str) -> str:
-    value = os.getenv(name)
-    if not value:
-        raise RuntimeError(f"Missing required environment variable: {name}")
-    return value
-
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_db_and_tables()
+    yield
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
@@ -55,7 +54,7 @@ class CustomerCreate(SQLModel):
     email: str | None = None
     age: int | None = None
     password: str | None = None
-    adress: str | None = None
+    address: str | None = None
 
 class CustomerList(SQLModel):
     customers: List[Customer]
@@ -76,7 +75,7 @@ def get_session():
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -145,17 +144,13 @@ async def login(
 async def me(user = Depends(get_current_user)):
     return {"email": user}
 
-@app.on_event("startup")
-def on_startup():
-    create_db_and_tables()
-
 @app.get("/")
 def hello_world():
     return {"message": "Hello World"}
 
 @app.post("/users/", response_model=User, status_code=status.HTTP_201_CREATED)
 async def create_user(user: UserCreate, session: SessionDep):
-    user = User(id=uuid4(), **user.dict())
+    user = User(id=uuid4(), **user.model_dump())
     hashed_password = hashlib.sha256(user.password.encode()).hexdigest() if user.password else None
     user.password = hashed_password
     session.add(user)
@@ -167,20 +162,20 @@ async def create_user(user: UserCreate, session: SessionDep):
     }
 
 @app.get("/users/", response_model=UserList, status_code=status.HTTP_200_OK)
-async def list_users(session: SessionDep):
+def list_users(session: SessionDep):
     users = session.exec(select(User)).all()
     return UserList(users=users)
 
 @app.get("/users/{user_id}", response_model=User, status_code=status.HTTP_200_OK)
-async def read_user(user_id: UUID, session: SessionDep):
+def read_user(user_id: UUID, session: SessionDep):
     user = session.get(User, user_id)
     if user is None:
         return {"error": "User not found"}, status.HTTP_404_NOT_FOUND
     return user
 
 @app.post("/customers/", response_model=Customer, status_code=status.HTTP_201_CREATED)
-async def create_customer(customer: CustomerCreate, session: SessionDep):
-    customer = Customer(id=uuid4(), **customer.dict())
+def create_customer(customer: CustomerCreate, session: SessionDep):
+    customer = Customer(id=uuid4(), **customer.model_dump())
     hashed_password = hashlib.sha256(customer.password.encode()).hexdigest() if customer.password else None
     customer.password = hashed_password
     session.add(customer)
@@ -192,19 +187,19 @@ async def create_customer(customer: CustomerCreate, session: SessionDep):
     }
 
 @app.get("/customers/", response_model=CustomerList, status_code=status.HTTP_200_OK)
-async def list_customers(session: SessionDep):
+def list_customers(session: SessionDep):
     customers = session.exec(select(Customer)).all()
     return CustomerList(customers=customers)
 
 @app.get("/customers/{customer_id}", response_model=Customer, status_code=status.HTTP_200_OK)
-async def read_customer(customer_id: UUID, session: SessionDep):
+def read_customer(customer_id: UUID, session: SessionDep):
     customer = session.get(Customer, customer_id)
     if customer is None:
         return {"error": "Customer not found"}, status.HTTP_404_NOT_FOUND
     return customer
 
 @app.delete("/users/{user_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
-async def delete_user(user_id: UUID, session: SessionDep):
+def delete_user(user_id: UUID, session: SessionDep):
     user = session.get(User, user_id)
     if user is None:
         return {"error": "User not found"}, status.HTTP_404_NOT_FOUND
@@ -213,7 +208,7 @@ async def delete_user(user_id: UUID, session: SessionDep):
     return {"message": "User deleted successfully"}
 
 @app.delete("/customers/{customer_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
-async def delete_customer(customer_id: UUID, session: SessionDep):
+def delete_customer(customer_id: UUID, session: SessionDep):
     customer = session.get(Customer, customer_id)
     if customer is None:
         return {"error": "Customer not found"}, status.HTTP_404_NOT_FOUND
