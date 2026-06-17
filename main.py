@@ -55,6 +55,7 @@ class CustomerCreate(SQLModel):
     age: int | None = None
     password: str | None = None
     address: str | None = None
+    password: str | None = None
 
 class CustomerList(SQLModel):
     customers: List[Customer]
@@ -62,13 +63,17 @@ class CustomerList(SQLModel):
 class UserList(SQLModel):
     users: List[User]
 
-class UserCreate(SQLModel):
-    name: str
-    age: int | None = None
-    email: str | None = None
 
 class UserList(SQLModel):
     users: List[User]
+
+class UserResponse(SQLModel):
+    message: str
+    user: User
+
+class CustomerResponse(SQLModel):
+    message: str
+    customer: Customer
 
 sqlite_file_name = "database.sqlite"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
@@ -156,7 +161,7 @@ async def me(user = Depends(get_current_user)):
 def hello_world():
     return {"message": "Hello World"}
 
-@app.post("/users/", response_model=User, status_code=status.HTTP_201_CREATED)
+@app.post("/users/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate, session: SessionDep):
     user = User(id=uuid4(), **user.model_dump())
     hashed_password = hashlib.sha256(user.password.encode()).hexdigest() if user.password else None
@@ -181,7 +186,7 @@ def read_user(user_id: UUID, session: SessionDep):
         return {"error": "User not found"}, status.HTTP_404_NOT_FOUND
     return user
 
-@app.post("/customers/", response_model=Customer, status_code=status.HTTP_201_CREATED)
+@app.post("/customers/", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
 def create_customer(customer: CustomerCreate, session: SessionDep):
     customer = Customer(id=uuid4(), **customer.model_dump())
     hashed_password = hashlib.sha256(customer.password.encode()).hexdigest() if customer.password else None
