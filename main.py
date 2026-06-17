@@ -1,10 +1,32 @@
+import os
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from uuid import UUID, uuid4
 from typing import Annotated, Dict, List
 from sqlmodel import Field, Session, SQLModel, create_engine, select, text
 import hashlib
+import jwt
+from dotenv import load_dotenv
 
+load_dotenv()
+
+def get_required_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+    return value
+
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+class Token(SQLModel):
+    access_token: str
+    token_type: str
+
+class TokenData(SQLModel):
+    username: str | None = None
 
 class User(SQLModel, table=True):
     id: UUID | None = Field(default_factory=uuid4, primary_key=True)
@@ -19,7 +41,7 @@ class Customer(SQLModel, table=True):
     email: str | None = Field(default=None, index=True)
     age: int | None = Field(default=None, index=True)
     password: str | None = Field(default=None, index=True)
-    adress: str | None = Field(default=None, index=True)
+    address: str | None = Field(default=None, index=True)
 
 
 class UserCreate(SQLModel):
@@ -58,7 +80,19 @@ app = FastAPI()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-fake_tokens = {}
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    payload = jwt.decode(
+    token,
+    SECRET_KEY,
+    algorithms=[ALGORITHM]
+    )
+
+    user_email = payload.get("sub")
+
+    if not user_email:
+        raise HTTPException(401)
+
+    return user_email
 
 @app.get("/auth/")
 async def read_items(token: Annotated[str, Depends(oauth2_scheme)]):
@@ -92,10 +126,15 @@ async def login(
             detail="Senha incorreta"
         )
 
-    token = str(uuid4())
+    payload = {
+    "sub": user.email
+}
 
-    # guarda token associado ao usuário
-    fake_tokens[token] = user.email
+    token = jwt.encode(
+        payload,
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
 
     return {
         "access_token": token,
@@ -103,14 +142,8 @@ async def login(
     }
 
 @app.get("/me")
-async def me(token: str = Depends(oauth2_scheme)):
-    user_email = fake_tokens.get(token)
-    if not user_email:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Could not validate credentials"
-        )
-    return {"email": user_email}
+async def me(user = Depends(get_current_user)):
+    return {"email": user}
 
 @app.on_event("startup")
 def on_startup():
@@ -128,7 +161,10 @@ async def create_user(user: UserCreate, session: SessionDep):
     session.add(user)
     session.commit()
     session.refresh(user)
-    return user, {"message": "User created successfully"}
+    return {
+    "message": "User created successfully",
+    "user": user
+    }
 
 @app.get("/users/", response_model=UserList, status_code=status.HTTP_200_OK)
 async def list_users(session: SessionDep):
@@ -150,7 +186,10 @@ async def create_customer(customer: CustomerCreate, session: SessionDep):
     session.add(customer)
     session.commit()
     session.refresh(customer)
-    return customer, {"message": "Customer created successfully"}
+    return {
+    "message": "Customer created successfully",
+    "customer": customer
+    }
 
 @app.get("/customers/", response_model=CustomerList, status_code=status.HTTP_200_OK)
 async def list_customers(session: SessionDep):

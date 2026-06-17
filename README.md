@@ -32,7 +32,12 @@ source .venv/bin/activate
 pip install "fastapi[standard]" sqlmodel uvicorn
 ```
 
+3. Add your own secret key on a .env file:
 
+```bash
+    SECRET_KEY = ""
+```
+##### You can use "openssl rand -hex 32" on the terminal to generate your own key.
 ## Running the application
 
 From the directory that contains `main.py` (or from the repository root using `--app-dir`), run:
