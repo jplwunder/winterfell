@@ -1,1 +1,8 @@
-database.sqlite
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+*.sqlite
+*.db
+*.env
