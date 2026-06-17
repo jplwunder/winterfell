@@ -62,6 +62,14 @@ class CustomerList(SQLModel):
 class UserList(SQLModel):
     users: List[User]
 
+class UserCreate(SQLModel):
+    name: str
+    age: int | None = None
+    email: str | None = None
+
+class UserList(SQLModel):
+    users: List[User]
+
 sqlite_file_name = "database.sqlite"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 engine = create_engine(sqlite_url, echo=True)
@@ -149,7 +157,7 @@ def hello_world():
     return {"message": "Hello World"}
 
 @app.post("/users/", response_model=User, status_code=status.HTTP_201_CREATED)
-async def create_user(user: UserCreate, session: SessionDep):
+def create_user(user: UserCreate, session: SessionDep):
     user = User(id=uuid4(), **user.model_dump())
     hashed_password = hashlib.sha256(user.password.encode()).hexdigest() if user.password else None
     user.password = hashed_password
