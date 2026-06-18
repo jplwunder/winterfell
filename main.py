@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta, timezone
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from uuid import UUID, uuid4
@@ -18,7 +19,7 @@ async def lifespan(app: FastAPI):
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_SECONDS = 30
 
 class Token(SQLModel):
     access_token: str
@@ -53,16 +54,11 @@ class CustomerCreate(SQLModel):
     name: str
     email: str | None = None
     age: int | None = None
-    password: str | None = None
     address: str | None = None
     password: str | None = None
 
 class CustomerList(SQLModel):
     customers: List[Customer]
-
-class UserList(SQLModel):
-    users: List[User]
-
 
 class UserList(SQLModel):
     users: List[User]
@@ -93,13 +89,25 @@ app = FastAPI(lifespan=lifespan)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 def get_current_user(token: str = Depends(oauth2_scheme)):
-    payload = jwt.decode(
-    token,
-    SECRET_KEY,
-    algorithms=[ALGORITHM]
-    )
+    try:
+        payload = jwt.decode(
+        token,
+        SECRET_KEY,
+        algorithms=[ALGORITHM],
+        )
 
-    user_email = payload.get("sub")
+        user_email = payload.get("sub")
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired"
+        )
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
 
     if not user_email:
         raise HTTPException(401)
@@ -112,6 +120,7 @@ async def read_items(token: Annotated[str, Depends(oauth2_scheme)]):
 
 @app.post("/token")
 async def login(
+    
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     session: Session = Depends(get_session)
 ):
@@ -137,10 +146,12 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Senha incorreta"
         )
+    expire = datetime.now(timezone.utc) + timedelta(seconds=ACCESS_TOKEN_EXPIRE_SECONDS)
 
     payload = {
-    "sub": user.email
-}
+    "sub": user.email,
+    "exp": expire
+    }
 
     token = jwt.encode(
         payload,
@@ -166,6 +177,13 @@ def create_user(user: UserCreate, session: SessionDep):
     user = User(id=uuid4(), **user.model_dump())
     hashed_password = hashlib.sha256(user.password.encode()).hexdigest() if user.password else None
     user.password = hashed_password
+    if user.email:
+        existing_user = session.exec(select(User).where(User.email == user.email)).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=400,
+                detail="Email already registered"
+            )
     session.add(user)
     session.commit()
     session.refresh(user)
@@ -183,7 +201,10 @@ def list_users(session: SessionDep):
 def read_user(user_id: UUID, session: SessionDep):
     user = session.get(User, user_id)
     if user is None:
-        return {"error": "User not found"}, status.HTTP_404_NOT_FOUND
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
     return user
 
 @app.post("/customers/", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
@@ -191,6 +212,13 @@ def create_customer(customer: CustomerCreate, session: SessionDep):
     customer = Customer(id=uuid4(), **customer.model_dump())
     hashed_password = hashlib.sha256(customer.password.encode()).hexdigest() if customer.password else None
     customer.password = hashed_password
+    if customer.email:
+        existing_customer = session.exec(select(Customer).where(Customer.email == customer.email)).first()
+        if existing_customer:
+            raise HTTPException(
+                status_code=400,
+                detail="Email already registered"
+            )
     session.add(customer)
     session.commit()
     session.refresh(customer)
@@ -208,14 +236,20 @@ def list_customers(session: SessionDep):
 def read_customer(customer_id: UUID, session: SessionDep):
     customer = session.get(Customer, customer_id)
     if customer is None:
-        return {"error": "Customer not found"}, status.HTTP_404_NOT_FOUND
+        raise HTTPException(
+            status_code=404,
+            detail="Customer not found"
+        )
     return customer
 
 @app.delete("/users/{user_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
 def delete_user(user_id: UUID, session: SessionDep):
     user = session.get(User, user_id)
     if user is None:
-        return {"error": "User not found"}, status.HTTP_404_NOT_FOUND
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
     session.delete(user)
     session.commit()
     return {"message": "User deleted successfully"}
@@ -224,7 +258,10 @@ def delete_user(user_id: UUID, session: SessionDep):
 def delete_customer(customer_id: UUID, session: SessionDep):
     customer = session.get(Customer, customer_id)
     if customer is None:
-        return {"error": "Customer not found"}, status.HTTP_404_NOT_FOUND
+        raise HTTPException(
+            status_code=404,
+            detail="Customer not found"
+        )
     session.delete(customer)
     session.commit()
     return {"message": "Customer deleted successfully"}
