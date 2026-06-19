@@ -9,6 +9,7 @@ dependencies = [
   "httpx2>=2.4.0",
   "pyjwt>=2.13.0",
   "pytest>=9.1.0",
+  "pytest-cov>=7.1.0",
   "sqlmodel",
   "uvicorn[standard]",
 ]

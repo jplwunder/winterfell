@@ -9,6 +9,7 @@ import hashlib
 import jwt
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 load_dotenv()
 
@@ -19,7 +20,7 @@ async def lifespan(app: FastAPI):
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_SECONDS = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 class Token(SQLModel):
     access_token: str
@@ -71,7 +72,8 @@ class CustomerResponse(SQLModel):
     message: str
     customer: Customer
 
-sqlite_file_name = "database.sqlite"
+BASE_DIR = Path(__file__).resolve().parent
+sqlite_file_name = BASE_DIR / "database.sqlite"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 engine = create_engine(sqlite_url, echo=True)
 
@@ -146,7 +148,7 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Senha incorreta"
         )
-    expire = datetime.now(timezone.utc) + timedelta(seconds=ACCESS_TOKEN_EXPIRE_SECONDS)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     payload = {
     "sub": user.email,
