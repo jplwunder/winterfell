@@ -4,12 +4,11 @@ import hashlib
 import random 
 import string
 
-client = TestClient(app)
 
 def random_email():
     return ''.join(random.choices(string.ascii_lowercase, k=10)) + "@example.com"
 
-def test_create_customer():
+def test_create_customer(client):
     response = client.post("/customers/", json={
         "name": "John Doe",
         "email": random_email(),
@@ -21,7 +20,7 @@ def test_create_customer():
     data = response.json()
     assert data["message"] == "Customer created successfully"
 
-def test_create_customer_with_existing_email():
+def test_create_customer_with_existing_email(client):
     # First, create a customer
     client.post("/customers/", json={
         "name": "Jake Paul",
@@ -42,14 +41,14 @@ def test_create_customer_with_existing_email():
     data = response.json()
     assert data["detail"] == "Email already registered"
 
-def test_list_customers():
+def test_list_customers(client):
     response = client.get("/customers/")
     assert response.status_code == 200
     data = response.json()
     assert "customers" in data
     assert isinstance(data["customers"], list)
 
-def test_read_customer():
+def test_read_customer(client):
 
     response_create = client.post("/customers/", json={
         "name": "Jane Doe",
@@ -72,14 +71,14 @@ def test_read_customer():
 
     assert data_read["password"] == expected_hashed_password
 
-def test_read_nonexistent_customer():
+def test_read_nonexistent_customer(client):
     non_existent_id = "11111111-1111-1111-1111-111111111111"
     response_read = client.get(f"/customers/{non_existent_id}")
     assert response_read.status_code == 404
     data_read = response_read.json()
     assert data_read["detail"] == "Customer not found"
 
-def test_delete_customer():
+def test_delete_customer(client):
     response_create = client.post("/customers/", json={
         "name": "Alice Smith",
         "email": "alice.smith@example.com",
@@ -96,7 +95,7 @@ def test_delete_customer():
     data_delete = response_delete.json()
     assert data_delete["message"] == "Customer deleted successfully"
 
-def test_delete_nonexistent_customer():
+def test_delete_nonexistent_customer(client):
     non_existent_id = "11111111-1111-1111-1111-111111111111"
     response_delete = client.delete(f"/customers/{non_existent_id}")
     assert response_delete.status_code == 404

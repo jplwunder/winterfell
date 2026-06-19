@@ -4,12 +4,10 @@ import hashlib
 import random 
 import string
 
-client = TestClient(app)
-
 def random_email():
     return ''.join(random.choices(string.ascii_lowercase, k=10)) + "@example.com"
 
-def test_create_user():
+def test_create_user(client):
     response = client.post("/users/", json={
         "name": "John Doe",
         "email": random_email(),
@@ -20,7 +18,7 @@ def test_create_user():
     data = response.json()
     assert data["message"] == "User created successfully"
 
-def test_create_user_with_existing_email():
+def test_create_user_with_existing_email(client):
     # First, create a user
     email = random_email()
 
@@ -42,14 +40,14 @@ def test_create_user_with_existing_email():
     data = response.json()
     assert data["detail"] == "Email already registered"
 
-def test_list_users():
+def test_list_users(client):
     response = client.get("/users/")
     assert response.status_code == 200
     data = response.json()
     assert "users" in data
     assert isinstance(data["users"], list)
 
-def test_read_user():
+def test_read_user(client):
 
     response_create = client.post("/users/", json={
         "name": "Jane Doe",
@@ -79,14 +77,14 @@ def test_read_user():
 
     assert data_read["password"] == expected_hashed_password
 
-def test_read_nonexistent_user():
+def test_read_nonexistent_user(client):
     non_existent_id = "11111111-1111-1111-1111-111111111111"
     response_read = client.get(f"/users/{non_existent_id}")
     assert response_read.status_code == 404
     data_read = response_read.json()
     assert data_read["detail"] == "User not found"
 
-def test_delete_user():
+def test_delete_user(client):
     response_create = client.post("/users/", json={
         "name": "Alice Smith",
         "email": "alice.smith@example.com",
@@ -102,7 +100,7 @@ def test_delete_user():
     data_delete = response_delete.json()
     assert data_delete["message"] == "User deleted successfully"
 
-def test_delete_nonexistent_user():
+def test_delete_nonexistent_user(client):
     non_existent_id = "11111111-1111-1111-1111-111111111111"
     response_delete = client.delete(f"/users/{non_existent_id}")
     assert response_delete.status_code == 404
