@@ -44,6 +44,8 @@ class Customer(SQLModel, table=True):
     password: str | None = Field(default=None, index=True)
     address: str | None = Field(default=None, index=True)
 
+    created_by: UUID | None = Field(default=None, foreign_key="user.id")
+
 
 class UserCreate(SQLModel):
     name: str
@@ -90,7 +92,7 @@ app = FastAPI(lifespan=lifespan)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-def get_current_user(token: str = Depends(oauth2_scheme)):
+def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
     try:
         payload = jwt.decode(
         token,
@@ -98,7 +100,25 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         algorithms=[ALGORITHM],
         )
 
-        user_email = payload.get("sub")
+        user_id = payload.get("sub")
+
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token"
+            )
+        
+        user_id = UUID(user_id)
+        
+        user = session.exec(select(User).where(User.id == user_id)).first()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        return user
 
     except jwt.ExpiredSignatureError:
         raise HTTPException(
@@ -110,11 +130,12 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token"
         )
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
 
-    if not user_email:
-        raise HTTPException(401)
-
-    return user_email
 
 @app.get("/auth/")
 async def read_items(token: Annotated[str, Depends(oauth2_scheme)]):
@@ -151,7 +172,7 @@ async def login(
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     payload = {
-    "sub": user.email,
+    "sub": str(user.id),
     "exp": expire
     }
 
@@ -168,7 +189,7 @@ async def login(
 
 @app.get("/me")
 async def me(user = Depends(get_current_user)):
-    return {"email": user}
+    return {"email": user.email}
 
 @app.get("/")
 def hello_world():
@@ -210,10 +231,11 @@ def read_user(user_id: UUID, session: SessionDep):
     return user
 
 @app.post("/customers/", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
-def create_customer(customer: CustomerCreate, session: SessionDep):
+def create_customer(customer: CustomerCreate, session: SessionDep, current_user: User = Depends(get_current_user)):
     customer = Customer(id=uuid4(), **customer.model_dump())
     hashed_password = hashlib.sha256(customer.password.encode()).hexdigest() if customer.password else None
     customer.password = hashed_password
+    customer.created_by = current_user.id
     if customer.email:
         existing_customer = session.exec(select(Customer).where(Customer.email == customer.email)).first()
         if existing_customer:
