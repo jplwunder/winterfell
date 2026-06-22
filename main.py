@@ -88,7 +88,10 @@ def get_session():
 
 SessionDep = Annotated[Session, Depends(get_session)]
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    lifespan=lifespan,
+    swagger_ui_parameters={"persistAuthorization": True}
+              )
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
