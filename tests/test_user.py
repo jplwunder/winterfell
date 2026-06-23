@@ -29,6 +29,29 @@ def test_create_user_with_existing_email(client):
     data = response.json()
     assert data["detail"] == "Email already registered"
 
+def test_create_user_with_invalid_email(client):
+    response = client.post("/users/", json={
+        "name": "Jane Doe",
+        "email": "invalid-email",
+        "age": 25,
+        "password": "password456"
+    })
+
+    assert response.status_code == 400
+    data = response.json()
+    assert data["detail"] == "Invalid email format"
+
+def test_create_underage_user(client):
+    response = client.post("/users/", json={
+        "name": "Young User",
+        "email": random_email(),
+        "age": 17,
+        "password": "password123"
+    })
+    assert response.status_code == 400
+    data = response.json()
+    assert data["detail"] == "User must be at least 18 years old"
+
 def test_list_users(client):
     response = client.get("/users/")
     assert response.status_code == 200

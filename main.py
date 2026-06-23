@@ -10,9 +10,10 @@ import jwt
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from pathlib import Path
+from email_validator import validate_email, EmailNotValidError
 
 load_dotenv()
-
+    
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
@@ -203,13 +204,24 @@ def create_user(user: UserCreate, session: SessionDep):
     user = User(id=uuid4(), **user.model_dump())
     hashed_password = hashlib.sha256(user.password.encode()).hexdigest() if user.password else None
     user.password = hashed_password
-    if user.email:
+    if (user.age < 18):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User must be at least 18 years old"
+        )
+    if ((user.email).count("@") == 1 and (user.email).count(".") >= 1 and (user.email).find("@.") == -1 and (user.email).find(".@") == -1):
         existing_user = session.exec(select(User).where(User.email == user.email)).first()
         if existing_user:
             raise HTTPException(
-                status_code=400,
+                status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
             )
+        
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid email format"
+        )
     session.add(user)
     session.commit()
     session.refresh(user)
@@ -239,13 +251,18 @@ def create_customer(customer: CustomerCreate, session: SessionDep, current_user:
     hashed_password = hashlib.sha256(customer.password.encode()).hexdigest() if customer.password else None
     customer.password = hashed_password
     customer.created_by = current_user.id
-    if customer.email:
+    if (customer.email).count("@") == 1 and (customer.email).count(".") >= 1 and (customer.email).find("@.") == -1 and (customer.email).find(".@") == -1:
         existing_customer = session.exec(select(Customer).where(Customer.email == customer.email)).first()
         if existing_customer:
             raise HTTPException(
-                status_code=400,
+                status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
             )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid email format"
+        )
     session.add(customer)
     session.commit()
     session.refresh(customer)
@@ -268,7 +285,7 @@ def read_customer(customer_id: UUID, session: SessionDep, current_user: User = D
     ).first()
     if customers is None:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Customer not found or your not authorized to access this customer"
         )
     return customers
@@ -278,7 +295,7 @@ def delete_user(user_id: UUID, session: SessionDep,):
     user = session.get(User, user_id)
     if user is None:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
     session.delete(user)
@@ -290,7 +307,7 @@ def delete_customer(customer_id: UUID, session: SessionDep, current_user: User =
     customer = session.get(Customer, customer_id)
     if customer is None:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Customer not found"
         )
     session.delete(customer)

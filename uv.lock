@@ -1515,6 +1515,7 @@ name = "winterfell"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "email-validator" },
     { name = "fastapi", extra = ["standard"] },
     { name = "httpx2" },
     { name = "pyjwt" },
@@ -1526,6 +1527,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "email-validator", specifier = ">=2.3.0" },
     { name = "fastapi", extras = ["standard"] },
     { name = "httpx2", specifier = ">=2.4.0" },
     { name = "pyjwt", specifier = ">=2.13.0" },
