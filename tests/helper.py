@@ -30,6 +30,17 @@ def create_customer_test(client,token, name, email, age, password, address):
     assert response.status_code == 201
     return response.json()["customer"]
 
+def create_order_test(client, token, customer_id, description):
+    response = client.post("/orders/", headers={
+        "Authorization": f"Bearer {token}"
+    }, json={
+        "customer_id": customer_id,
+        "description": description
+    })
+    assert response.status_code == 201
+    return response.json()["order"]
+
+
 def get_auth_token(client):
     user = create_user_test(
         client,

@@ -47,6 +47,12 @@ class Customer(SQLModel, table=True):
 
     created_by: UUID | None = Field(default=None, foreign_key="user.id")
 
+class Order(SQLModel, table=True):
+    id: UUID | None = Field(default_factory=uuid4, primary_key=True)
+    customer_id: UUID = Field(foreign_key="customer.id")
+    user_id: UUID = Field(foreign_key="user.id")
+    description: str
+
 
 class UserCreate(SQLModel):
     name: str
@@ -61,11 +67,18 @@ class CustomerCreate(SQLModel):
     address: str | None = None
     password: str | None = None
 
+class OrderCreate(SQLModel):
+    customer_id: UUID
+    description: str
+
 class CustomerList(SQLModel):
     customers: List[Customer]
 
 class UserList(SQLModel):
     users: List[User]
+
+class OrderList(SQLModel):
+    orders: List[Order]
 
 class UserResponse(SQLModel):
     message: str
@@ -74,6 +87,10 @@ class UserResponse(SQLModel):
 class CustomerResponse(SQLModel):
     message: str
     customer: Customer
+
+class OrderResponse(SQLModel):
+    message: str
+    order: Order
 
 BASE_DIR = Path(__file__).resolve().parent
 sqlite_file_name = BASE_DIR / "database.sqlite"
@@ -313,6 +330,56 @@ def delete_customer(customer_id: UUID, session: SessionDep, current_user: User =
     session.delete(customer)
     session.commit()
     return {"message": "Customer deleted successfully"}
+
+@app.post("/orders/", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
+def create_order(order: OrderCreate, session: SessionDep, current_user: User = Depends(get_current_user)):
+    customer = session.get(Customer, order.customer_id)
+    if customer is None or customer.created_by != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Customer not found or you're not authorized to create an order for this customer"
+        )
+    order = Order(id=uuid4(), user_id=current_user.id, **order.model_dump())
+    session.add(order)
+    session.commit()
+    session.refresh(order)
+    return {
+        "message": "Order created successfully",
+        "order": order
+    }
+
+@app.get("/orders/", response_model=OrderList, status_code=status.HTTP_200_OK)
+def list_orders(session: SessionDep, current_user: User = Depends(get_current_user)):
+    orders = session.exec(
+        select(Order).where(Order.user_id == current_user.id and Order.customer_id == Customer.id and Customer.created_by == current_user.id)
+    ).all()
+    return OrderList(orders=orders)
+
+@app.get("/orders/{order_id}", response_model=Order, status_code=status.HTTP_200_OK)
+def read_order(order_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
+    order = session.exec(
+        select(Order).where(Order.id == order_id and Order.user_id == current_user.id and Order.customer_id == Customer.id and Customer.created_by == current_user.id)
+    ).one_or_none()
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found or you're not authorized to access this order"
+        )
+    return order
+
+@app.delete("/orders/{order_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
+def delete_order(order_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
+    order = session.exec(
+        select(Order).where(Order.id == order_id and Order.user_id == current_user.id and Order.customer_id == Customer.id and Customer.created_by == current_user.id)
+    ).one_or_none()
+    if order is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found or you're not authorized to delete this order"
+        )
+    session.delete(order)
+    session.commit()
+    return {"message": "Order deleted successfully"}
 
 @app.get("/db-check")
 async def db_check():
