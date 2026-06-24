@@ -6,6 +6,8 @@ import string
 from datetime import datetime, timedelta
 import jwt
 
+from tests.helper import create_user_test, random_string
+
 
 def test_login(client):
 
@@ -13,12 +15,7 @@ def test_login(client):
     password = "password123"
 
     # First, create a user
-    client.post("/users/", json={
-        "name": "John Doe",
-        "email": email,
-        "age": 30,
-        "password": password
-    })
+    create_user_test(client, random_string(10), email, 30, password)
 
     response = client.post("/token", data={
         "username": email,
@@ -36,12 +33,7 @@ def test_login_with_wrong_password(client):
     password = "password123"
 
     # First, create a user
-    client.post("/users/", json={
-        "name": "John Doe",
-        "email": email,
-        "age": 30,
-        "password": password
-    })
+    create_user_test(client, random_string(10), email, 30, password)
 
     response = client.post("/token", data={
         "username": email,
@@ -71,12 +63,7 @@ def test_me(client):
     password = "password123"
 
     # First, create a user
-    client.post("/users/", json={
-        "name": "John Doe",
-        "email": email,
-        "age": 30,
-        "password": password
-    })
+    create_user_test(client, random_string(10), email, 30, password)
 
     response_login = client.post("/token", data={
         "username": email,
@@ -92,8 +79,7 @@ def test_me(client):
     })
 
     assert response_me.status_code == 200
-    data_me = response_me.json()
-    assert data_me["email"] == email
+    assert response_me.json()["email"] == email
 
 def test_me_with_invalid_token(client):
     
@@ -101,15 +87,13 @@ def test_me_with_invalid_token(client):
         "Authorization": "Bearer invalidtoken"
     })
     assert response_me.status_code == 401
-    data_me = response_me.json()
-    assert data_me["detail"] == "Invalid token"
+    assert response_me.json()["detail"] == "Invalid token"
 
 def test_me_without_token(client):
     
     response_me = client.get("/me")
     assert response_me.status_code == 401
-    data_me = response_me.json()
-    assert data_me["detail"] == "Not authenticated"
+    assert response_me.json()["detail"] == "Not authenticated"
 
 def test_me_with_expired_token(client):
 
