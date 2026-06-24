@@ -280,18 +280,18 @@ def list_customers(session: SessionDep, current_user: User = Depends(get_current
 
 @app.get("/customers/{customer_id}", response_model=Customer, status_code=status.HTTP_200_OK)
 def read_customer(customer_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
-    customers = session.exec(
+    customer = session.exec(
     select(Customer).where(Customer.created_by == current_user.id and Customer.id == customer_id)
-    ).first()
-    if customers is None:
+    ).one_or_none()
+    if customer is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Customer not found or your not authorized to access this customer"
+            detail="Customer not found or you're not authorized to access this customer"
         )
-    return customers
+    return customer
 
 @app.delete("/users/{user_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
-def delete_user(user_id: UUID, session: SessionDep,):
+def delete_user(user_id: UUID, session: SessionDep):
     user = session.get(User, user_id)
     if user is None:
         raise HTTPException(

@@ -69,7 +69,7 @@ def test_read_nonexistent_customer(client):
         )
     assert response_read.status_code == 404
     data_read = response_read.json()
-    assert data_read["detail"] == "Customer not found or your not authorized to access this customer"
+    assert data_read["detail"] == "Customer not found or you're not authorized to access this customer"
 
 def test_delete_customer(client):
     token = get_auth_token(client)
