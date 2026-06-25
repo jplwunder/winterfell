@@ -358,7 +358,13 @@ def list_orders(session: SessionDep, current_user: User = Depends(get_current_us
 @app.get("/orders/{customer_id}", response_model=OrderList, status_code=status.HTTP_200_OK)
 def list_orders_from_a_single_customer(customer_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
     orders = session.exec(
-        select(Order).join(Customer).where(Order.user_id == current_user.id and Order.customer_id == customer_id and Customer.created_by == current_user.id)
+        select(Order)
+        .join(Customer)
+        .where(
+            Order.user_id == current_user.id,
+            Order.customer_id == customer_id,
+            Customer.created_by == current_user.id
+        )
     ).all()
     return OrderList(orders=orders)
 
