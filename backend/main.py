@@ -1,5 +1,6 @@
 import os
 from datetime import datetime, timedelta, timezone
+import secrets
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from uuid import UUID, uuid4
@@ -11,9 +12,9 @@ from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from pathlib import Path
 from email_validator import validate_email, EmailNotValidError
-from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
+    
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
@@ -37,21 +38,21 @@ class User(SQLModel, table=True):
     email: str | None = Field(default=None, index=True)
     password: str | None = Field(default=None, index=True)
 
-class Customer(SQLModel, table=True):
+class Attendee(SQLModel, table=True):
     id: UUID | None = Field(default_factory=uuid4, primary_key=True)
     name: str = Field(index=True)
     email: str | None = Field(default=None, index=True)
-    age: int | None = Field(default=None, index=True)
-    password: str | None = Field(default=None, index=True)
-    address: str | None = Field(default=None, index=True)
+    ticket_code: str = Field(index=True)
+    checked_in: bool = Field(default=False, index=True)
+    checked_in_at: datetime | None = Field(default=None, index=True)
+    checked_in_by: UUID | None = Field(default=None, foreign_key="user.id")
 
-    created_by: UUID | None = Field(default=None, foreign_key="user.id")
 
-class Order(SQLModel, table=True):
+class CheckInLog(SQLModel, table=True):
     id: UUID | None = Field(default_factory=uuid4, primary_key=True)
-    customer_id: UUID = Field(foreign_key="customer.id")
+    attendee_id: UUID = Field(foreign_key="attendee.id")
     user_id: UUID = Field(foreign_key="user.id")
-    description: str | None = Field(default=None, index=True)
+    created_at: datetime = Field(default_factory=datetime.now, index=True)
 
 
 class UserCreate(SQLModel):
@@ -60,37 +61,32 @@ class UserCreate(SQLModel):
     email: str | None = None
     password: str | None = None
 
-class CustomerCreate(SQLModel):
+class AttendeeCreate(SQLModel):
     name: str
     email: str | None = None
-    age: int | None = None
-    address: str | None = None
-    password: str | None = None
 
-class OrderCreate(SQLModel):
-    customer_id: UUID
-    description: str
+class CheckInLogCreate(SQLModel):
+    attendee_id: UUID
+    user_id: UUID
 
-class CustomerList(SQLModel):
-    customers: List[Customer]
 
 class UserList(SQLModel):
     users: List[User]
-
-class OrderList(SQLModel):
-    orders: List[Order]
 
 class UserResponse(SQLModel):
     message: str
     user: User
 
-class CustomerResponse(SQLModel):
-    message: str
-    customer: Customer
+class AttendeeList(SQLModel):
+    attendees: List[Attendee]
 
-class OrderResponse(SQLModel):
+class AttendeeResponse(SQLModel):
     message: str
-    order: Order
+    attendee: Attendee
+
+class CheckInResponse(SQLModel):
+    message: str
+    check_in_log: CheckInLog
 
 BASE_DIR = Path(__file__).resolve().parent
 sqlite_file_name = BASE_DIR / "database.sqlite"
@@ -108,15 +104,8 @@ SessionDep = Annotated[Session, Depends(get_session)]
 
 app = FastAPI(
     lifespan=lifespan,
-    swagger_ui_parameters={"persistAuthorization": True})
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    swagger_ui_parameters={"persistAuthorization": True}
+              )
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -164,6 +153,18 @@ def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Dep
             detail="Invalid token"
         )
 
+def generate_ticket_code() -> str:
+    return secrets.token_urlsafe(16)
+
+def is_valid_email(email: str) -> bool:
+    if not email:
+        return False
+    return (
+        email.count("@") == 1 and
+        email.count(".") >= 1 and
+        email.find("@.") == -1 and
+        email.find(".@") == -1
+    )
 
 @app.get("/auth/")
 async def read_items(token: Annotated[str, Depends(oauth2_scheme)]):
@@ -217,7 +218,7 @@ async def login(
 
 @app.get("/me")
 async def me(user = Depends(get_current_user)):
-    return {"email": user.email}
+    return {"id": str(user.id), "name": user.name, "email": user.email}
 
 @app.get("/")
 def hello_world():
@@ -228,12 +229,12 @@ def create_user(user: UserCreate, session: SessionDep):
     user = User(id=uuid4(), **user.model_dump())
     hashed_password = hashlib.sha256(user.password.encode()).hexdigest() if user.password else None
     user.password = hashed_password
-    if (user.age < 18):
+    if (user.age is not None and user.age < 18):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User must be at least 18 years old"
         )
-    if ((user.email).count("@") == 1 and (user.email).count(".") >= 1 and (user.email).find("@.") == -1 and (user.email).find(".@") == -1):
+    if is_valid_email(user.email):
         existing_user = session.exec(select(User).where(User.email == user.email)).first()
         if existing_user:
             raise HTTPException(
@@ -269,15 +270,11 @@ def read_user(user_id: UUID, session: SessionDep):
         )
     return user
 
-@app.post("/customers/", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
-def create_customer(customer: CustomerCreate, session: SessionDep, current_user: User = Depends(get_current_user)):
-    customer = Customer(id=uuid4(), **customer.model_dump())
-    hashed_password = hashlib.sha256(customer.password.encode()).hexdigest() if customer.password else None
-    customer.password = hashed_password
-    customer.created_by = current_user.id
-    if (customer.email).count("@") == 1 and (customer.email).count(".") >= 1 and (customer.email).find("@.") == -1 and (customer.email).find(".@") == -1:
-        existing_customer = session.exec(select(Customer).where(Customer.email == customer.email)).first()
-        if existing_customer:
+@app.post("/attendees/", response_model=AttendeeResponse, status_code=status.HTTP_201_CREATED)
+def create_attendee(attendee: AttendeeCreate, session: SessionDep, current_user: User = Depends(get_current_user)):
+    if is_valid_email(attendee.email):
+        existing_attendee = session.exec(select(Attendee).where(Attendee.email == attendee.email)).first()
+        if existing_attendee:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
@@ -287,32 +284,38 @@ def create_customer(customer: CustomerCreate, session: SessionDep, current_user:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid email format"
         )
-    session.add(customer)
+    
+    while True:
+        ticket_code = generate_ticket_code()
+        clash = session.exec(select(Attendee).where(Attendee.ticket_code == ticket_code)).first()
+        if not clash:
+            break
+    
+    attendee = Attendee(id=uuid4(), ticket_code=generate_ticket_code(), **attendee.model_dump())
+    session.add(attendee)
     session.commit()
-    session.refresh(customer)
+    session.refresh(attendee)
     return {
-    "message": "Customer created successfully",
-    "customer": customer
+    "message": "Attendee created successfully",
+    "attendee": attendee
     }
 
-@app.get("/customers/", response_model=CustomerList, status_code=status.HTTP_200_OK)
-def list_customers(session: SessionDep, current_user: User = Depends(get_current_user)):
-    customers = session.exec(
-    select(Customer).where(Customer.created_by == current_user.id)
-    ).all()
-    return CustomerList(customers=customers)
+@app.get("/attendees/", response_model=AttendeeList, status_code=status.HTTP_200_OK)
+def list_attendees(session: SessionDep, current_user: User = Depends(get_current_user)):
+    attendees = session.exec(select(Attendee)).all()
+    return AttendeeList(attendees=attendees)
 
-@app.get("/customers/{customer_id}", response_model=Customer, status_code=status.HTTP_200_OK)
-def read_customer(customer_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
-    customer = session.exec(
-    select(Customer).where(Customer.created_by == current_user.id and Customer.id == customer_id)
+@app.get("/attendees/by-code/{ticket_code}", response_model=Attendee, status_code=status.HTTP_200_OK)
+def read_attendee_by_code(ticket_code: str, session: SessionDep, current_user: User = Depends(get_current_user)):
+    attendee = session.exec(
+        select(Attendee).where(Attendee.ticket_code == ticket_code)
     ).one_or_none()
-    if customer is None:
+    if attendee is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Customer not found or you're not authorized to access this customer"
+            detail="Attendee not found"
         )
-    return customer
+    return attendee
 
 @app.delete("/users/{user_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
 def delete_user(user_id: UUID, session: SessionDep):
@@ -326,80 +329,68 @@ def delete_user(user_id: UUID, session: SessionDep):
     session.commit()
     return {"message": "User deleted successfully"}
 
-@app.delete("/customers/{customer_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
-def delete_customer(customer_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
-    customer = session.get(Customer, customer_id)
-    if customer is None:
+@app.delete("/attendees/{attendee_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
+def delete_attendee(attendee_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
+    attendee = session.get(Attendee, attendee_id)
+    if attendee is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Customer not found"
+            detail="Attendee not found"
         )
-    session.delete(customer)
+    session.delete(attendee)
     session.commit()
-    return {"message": "Customer deleted successfully"}
+    return {"message": "Attendee deleted successfully"}
 
-@app.post("/orders/", response_model=OrderResponse, status_code=status.HTTP_201_CREATED)
-def create_order(order: OrderCreate, session: SessionDep, current_user: User = Depends(get_current_user)):
-    customer = session.get(Customer, order.customer_id)
-    if customer is None or customer.created_by != current_user.id:
+@app.get("/attendees/{attendee_id}", response_model=Attendee, status_code=status.HTTP_200_OK)
+def read_attendee(attendee_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
+    attendee = session.get(Attendee, attendee_id)
+    if attendee is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Customer not found or you're not authorized to create an order for this customer"
+            detail="Attendee not found"
         )
-    order = Order(id=uuid4(), user_id=current_user.id, **order.model_dump())
-    session.add(order)
+    return attendee
+
+@app.post("/attendees/{ticket_code}/check-in", response_model=CheckInResponse, status_code=status.HTTP_201_CREATED)
+def check_in_attendee(ticket_code: str, session: SessionDep, current_user: User = Depends(get_current_user)):
+    attendee = session.exec(
+        select(Attendee).where(Attendee.ticket_code == ticket_code)
+    ).one_or_none()
+    if attendee is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Attendee not found"
+        )
+    if attendee.checked_in:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Attendee already checked in at " + attendee.checked_in_at.isoformat()
+        )
+    attendee.checked_in = True
+    attendee.checked_in_at = datetime.now(timezone.utc)
+    attendee.checked_in_by = current_user.id
+
+    log = CheckInLog(id=uuid4(), attendee_id=attendee.id, user_id=current_user.id)
+    session.add(attendee)
+    session.add(log)
     session.commit()
-    session.refresh(order)
+    session.refresh(attendee)
     return {
-        "message": "Order created successfully",
-        "order": order
+        "message": "Attendee checked in successfully",
+        "check_in_log": log
     }
 
-@app.get("/orders/", response_model=OrderList, status_code=status.HTTP_200_OK)
-def list_orders(session: SessionDep, current_user: User = Depends(get_current_user)):
-    orders = session.exec(
-        select(Order).where(Order.user_id == current_user.id and Order.customer_id == Customer.id and Customer.created_by == current_user.id)
-    ).all()
-    return OrderList(orders=orders)
-
-@app.get("/orders/customer/{customer_id}", response_model=OrderList, status_code=status.HTTP_200_OK)
-def list_orders_from_a_single_customer(customer_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
-    orders = session.exec(
-        select(Order)
-        .join(Customer)
-        .where(
-            Order.user_id == current_user.id,
-            Order.customer_id == customer_id,
-            Customer.created_by == current_user.id
-        )
-    ).all()
-    return OrderList(orders=orders)
-
-@app.get("/orders/{order_id}", response_model=Order, status_code=status.HTTP_200_OK)
-def read_order(order_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
-    order = session.exec(
-        select(Order).join(Customer).where(Order.id == order_id,Order.user_id == current_user.id,Customer.created_by == current_user.id)
-    ).one_or_none()
-    if order is None:
+@app.delete("/attendees/{attendee_id}", response_model=CheckInResponse, status_code=status.HTTP_200_OK)
+def delete_attendee(attendee_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
+    attendee = session.get(Attendee, attendee_id)
+    if attendee is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Order not found or you're not authorized to access this order"
+            detail="Attendee not found"
         )
-    return order
-
-@app.delete("/orders/{order_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
-def delete_order(order_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
-    order = session.exec(
-        select(Order).join(Customer).where(Order.id == order_id,Order.user_id == current_user.id,Customer.created_by == current_user.id)
-    ).one_or_none()
-    if order is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Order not found or you're not authorized to delete this order"
-        )
-    session.delete(order)
+    session.delete(attendee)
     session.commit()
-    return {"message": "Order deleted successfully"}
+    return {"message": "Attendee check-in deleted successfully"}
 
 @app.get("/db-check")
 async def db_check():

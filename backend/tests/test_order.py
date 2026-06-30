@@ -1,4 +1,4 @@
-from main import app
+from backend.main import app
 from fastapi.testclient import TestClient
 import hashlib
 import random 
