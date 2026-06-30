@@ -11,9 +11,9 @@ from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from pathlib import Path
 from email_validator import validate_email, EmailNotValidError
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
-    
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
@@ -51,7 +51,7 @@ class Order(SQLModel, table=True):
     id: UUID | None = Field(default_factory=uuid4, primary_key=True)
     customer_id: UUID = Field(foreign_key="customer.id")
     user_id: UUID = Field(foreign_key="user.id")
-    description: str
+    description: str | None = Field(default=None, index=True)
 
 
 class UserCreate(SQLModel):
@@ -108,8 +108,15 @@ SessionDep = Annotated[Session, Depends(get_session)]
 
 app = FastAPI(
     lifespan=lifespan,
-    swagger_ui_parameters={"persistAuthorization": True}
-              )
+    swagger_ui_parameters={"persistAuthorization": True})
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -355,10 +362,23 @@ def list_orders(session: SessionDep, current_user: User = Depends(get_current_us
     ).all()
     return OrderList(orders=orders)
 
+@app.get("/orders/customer/{customer_id}", response_model=OrderList, status_code=status.HTTP_200_OK)
+def list_orders_from_a_single_customer(customer_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
+    orders = session.exec(
+        select(Order)
+        .join(Customer)
+        .where(
+            Order.user_id == current_user.id,
+            Order.customer_id == customer_id,
+            Customer.created_by == current_user.id
+        )
+    ).all()
+    return OrderList(orders=orders)
+
 @app.get("/orders/{order_id}", response_model=Order, status_code=status.HTTP_200_OK)
 def read_order(order_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
     order = session.exec(
-        select(Order).where(Order.id == order_id and Order.user_id == current_user.id and Order.customer_id == Customer.id and Customer.created_by == current_user.id)
+        select(Order).join(Customer).where(Order.id == order_id,Order.user_id == current_user.id,Customer.created_by == current_user.id)
     ).one_or_none()
     if order is None:
         raise HTTPException(
@@ -370,7 +390,7 @@ def read_order(order_id: UUID, session: SessionDep, current_user: User = Depends
 @app.delete("/orders/{order_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
 def delete_order(order_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
     order = session.exec(
-        select(Order).where(Order.id == order_id and Order.user_id == current_user.id and Order.customer_id == Customer.id and Customer.created_by == current_user.id)
+        select(Order).join(Customer).where(Order.id == order_id,Order.user_id == current_user.id,Customer.created_by == current_user.id)
     ).one_or_none()
     if order is None:
         raise HTTPException(

@@ -29,6 +29,7 @@ def test_read_order(client):
     order = create_order_test(client, token, customer["id"], "Test Order Description")
 
     response_read = client.get(f"/orders/{order['id']}", headers={"Authorization": f"Bearer {token}"})
+
     data_read = response_read.json()
     assert response_read.status_code == 200
     assert data_read["description"] == "Test Order Description"
@@ -54,6 +55,9 @@ def test_delete_order(client):
 
     # Verify that the order is no longer accessible
     response_read = client.get(f"/orders/{order['id']}", headers={"Authorization": f"Bearer {token}"})
+
+    print("READ:", response_read.status_code)
+    print(response_read.json())
     assert response_read.status_code == 404
     data_read = response_read.json()
     assert data_read["detail"] == "Order not found or you're not authorized to access this order"
