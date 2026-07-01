@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 from pathlib import Path
 from email_validator import validate_email, EmailNotValidError
+from enum import Enum
 
 load_dotenv()
     
@@ -24,6 +25,37 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+class Event(SQLModel, table=True):
+    id: UUID | None = Field(default_factory=uuid4, primary_key=True)
+    name: str = Field(index=True)
+    date: datetime = Field(index=True)
+    location: str = Field(index=True)
+    description: str | None = Field(default=None, index=True)
+
+class EventRole(Enum):
+    attendee = "attendee"
+    user = "user"
+
+class EventMembership(SQLModel, table=True):
+    id: UUID | None = Field(default_factory=uuid4, primary_key=True)
+    event_id: UUID = Field(foreign_key="event.id")
+    user_id: UUID = Field(foreign_key="user.id")
+    role: EventRole = Field(default=EventRole.attendee, index=True)
+
+class Ticket(SQLModel, table=True):
+    id: UUID | None = Field(default_factory=uuid4, primary_key=True)
+    attendee_id: UUID = Field(foreign_key="user.id")
+    event_id: UUID = Field(foreign_key="event.id")
+    ticket_code: str = Field(default_factory=lambda: secrets.token_urlsafe(12), unique=True)
+    checked_in: bool = Field(default=False)
+    checked_in_at: datetime | None = None
+    checked_in_by: UUID | None = Field(default=None, foreign_key="user.id")
+    cancelled: bool = Field(default=False)
+
+class TicketCreate(SQLModel):
+    attendee_id: UUID
+    event_id: UUID
+
 class Token(SQLModel):
     access_token: str
     token_type: str
@@ -34,24 +66,14 @@ class TokenData(SQLModel):
 class User(SQLModel, table=True):
     id: UUID | None = Field(default_factory=uuid4, primary_key=True)
     name: str = Field(index=True)
-    age: int | None = Field(default=None, index=True)
     email: str | None = Field(default=None, index=True)
     password: str | None = Field(default=None, index=True)
-
-class Attendee(SQLModel, table=True):
-    id: UUID | None = Field(default_factory=uuid4, primary_key=True)
-    name: str = Field(index=True)
-    email: str | None = Field(default=None, index=True)
-    ticket_code: str = Field(index=True)
-    checked_in: bool = Field(default=False, index=True)
-    checked_in_at: datetime | None = Field(default=None, index=True)
-    checked_in_by: UUID | None = Field(default=None, foreign_key="user.id")
-
+    role: EventRole = Field(default=EventRole.user, index=True)
 
 class CheckInLog(SQLModel, table=True):
     id: UUID | None = Field(default_factory=uuid4, primary_key=True)
-    attendee_id: UUID = Field(foreign_key="attendee.id")
-    user_id: UUID = Field(foreign_key="user.id")
+    ticket_id: UUID = Field(foreign_key="ticket.id")
+    checked_by: UUID = Field(foreign_key="user.id")
     created_at: datetime = Field(default_factory=datetime.now, index=True)
 
 
@@ -61,14 +83,18 @@ class UserCreate(SQLModel):
     email: str | None = None
     password: str | None = None
 
-class AttendeeCreate(SQLModel):
-    name: str
-    email: str | None = None
 
 class CheckInLogCreate(SQLModel):
     attendee_id: UUID
+    ticket_id: UUID
     user_id: UUID
+    event_id: UUID
 
+class EventCreate(SQLModel):
+    name: str
+    date: datetime
+    location: str
+    description: str | None = None
 
 class UserList(SQLModel):
     users: List[User]
@@ -77,12 +103,12 @@ class UserResponse(SQLModel):
     message: str
     user: User
 
-class AttendeeList(SQLModel):
-    attendees: List[Attendee]
+class EventList(SQLModel):
+    events: List[Event]
 
-class AttendeeResponse(SQLModel):
+class EventResponse(SQLModel):
     message: str
-    attendee: Attendee
+    event: Event
 
 class CheckInResponse(SQLModel):
     message: str
@@ -226,14 +252,9 @@ def hello_world():
 
 @app.post("/users/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate, session: SessionDep):
-    user = User(id=uuid4(), **user.model_dump())
+    user = User(id=uuid4(),role=EventRole.user, **user.model_dump())
     hashed_password = hashlib.sha256(user.password.encode()).hexdigest() if user.password else None
     user.password = hashed_password
-    if (user.age is not None and user.age < 18):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User must be at least 18 years old"
-        )
     if is_valid_email(user.email):
         existing_user = session.exec(select(User).where(User.email == user.email)).first()
         if existing_user:
@@ -255,9 +276,9 @@ def create_user(user: UserCreate, session: SessionDep):
     "user": user
     }
 
-@app.get("/users/", response_model=UserList, status_code=status.HTTP_200_OK)
-def list_users(session: SessionDep):
-    users = session.exec(select(User)).all()
+@app.get("/users/{event_id}", response_model=UserList, status_code=status.HTTP_200_OK)
+def list_users(event_id: UUID, session: SessionDep):
+    users = session.exec(select(User).where(User.role == EventRole.user and User.id == EventMembership.user_id)).all()
     return UserList(users=users)
 
 @app.get("/users/{user_id}", response_model=User, status_code=status.HTTP_200_OK)
@@ -270,10 +291,13 @@ def read_user(user_id: UUID, session: SessionDep):
         )
     return user
 
-@app.post("/attendees/", response_model=AttendeeResponse, status_code=status.HTTP_201_CREATED)
-def create_attendee(attendee: AttendeeCreate, session: SessionDep, current_user: User = Depends(get_current_user)):
+@app.post("/attendees/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def create_attendee(attendee: UserCreate, session: SessionDep):
+    attendee = User(id=uuid4(), ticket_code=generate_ticket_code(), role=EventRole.attendee, **attendee.model_dump())
+    hashed_password = hashlib.sha256(attendee.password.encode()).hexdigest() if attendee.password else None
+    attendee.password = hashed_password
     if is_valid_email(attendee.email):
-        existing_attendee = session.exec(select(Attendee).where(Attendee.email == attendee.email)).first()
+        existing_attendee = session.exec(select(User).where(User.email == attendee.email)).first()
         if existing_attendee:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -285,30 +309,23 @@ def create_attendee(attendee: AttendeeCreate, session: SessionDep, current_user:
             detail="Invalid email format"
         )
     
-    while True:
-        ticket_code = generate_ticket_code()
-        clash = session.exec(select(Attendee).where(Attendee.ticket_code == ticket_code)).first()
-        if not clash:
-            break
-    
-    attendee = Attendee(id=uuid4(), ticket_code=generate_ticket_code(), **attendee.model_dump())
     session.add(attendee)
     session.commit()
     session.refresh(attendee)
     return {
     "message": "Attendee created successfully",
-    "attendee": attendee
+    "user": attendee
     }
 
-@app.get("/attendees/", response_model=AttendeeList, status_code=status.HTTP_200_OK)
-def list_attendees(session: SessionDep, current_user: User = Depends(get_current_user)):
-    attendees = session.exec(select(Attendee)).all()
-    return AttendeeList(attendees=attendees)
+@app.get("/attendees/{event_id}", response_model=UserList, status_code=status.HTTP_200_OK)
+def list_attendees(event_id: UUID, session: SessionDep):
+    attendees = session.exec(select(User).where(User.role == EventRole.attendee and User.id == EventMembership.user_id)).all()
+    return UserList(users=attendees)
 
-@app.get("/attendees/by-code/{ticket_code}", response_model=Attendee, status_code=status.HTTP_200_OK)
+@app.get("/attendees/by-code/{ticket_code}", response_model=User, status_code=status.HTTP_200_OK)
 def read_attendee_by_code(ticket_code: str, session: SessionDep, current_user: User = Depends(get_current_user)):
     attendee = session.exec(
-        select(Attendee).where(Attendee.ticket_code == ticket_code)
+        select(User).where(User.ticket_code == ticket_code)
     ).one_or_none()
     if attendee is None:
         raise HTTPException(
@@ -331,7 +348,7 @@ def delete_user(user_id: UUID, session: SessionDep):
 
 @app.delete("/attendees/{attendee_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
 def delete_attendee(attendee_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
-    attendee = session.get(Attendee, attendee_id)
+    attendee = session.get(User, attendee_id)
     if attendee is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -341,9 +358,9 @@ def delete_attendee(attendee_id: UUID, session: SessionDep, current_user: User =
     session.commit()
     return {"message": "Attendee deleted successfully"}
 
-@app.get("/attendees/{attendee_id}", response_model=Attendee, status_code=status.HTTP_200_OK)
+@app.get("/attendees/{attendee_id}", response_model=User, status_code=status.HTTP_200_OK)
 def read_attendee(attendee_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
-    attendee = session.get(Attendee, attendee_id)
+    attendee = session.get(User, attendee_id)
     if attendee is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -353,28 +370,28 @@ def read_attendee(attendee_id: UUID, session: SessionDep, current_user: User = D
 
 @app.post("/attendees/{ticket_code}/check-in", response_model=CheckInResponse, status_code=status.HTTP_201_CREATED)
 def check_in_attendee(ticket_code: str, session: SessionDep, current_user: User = Depends(get_current_user)):
-    attendee = session.exec(
-        select(Attendee).where(Attendee.ticket_code == ticket_code)
+    ticket = session.exec(
+        select(Ticket).where(Ticket.code == ticket_code)
     ).one_or_none()
-    if attendee is None:
+    if ticket is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Attendee not found"
+            detail="Ticket not found"
         )
-    if attendee.checked_in:
+    if ticket.checked_in:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Attendee already checked in at " + attendee.checked_in_at.isoformat()
+            detail="Attendee already checked in at " + ticket.checked_in_at.isoformat()
         )
-    attendee.checked_in = True
-    attendee.checked_in_at = datetime.now(timezone.utc)
-    attendee.checked_in_by = current_user.id
+    ticket.checked_in = True
+    ticket.checked_in_at = datetime.now(timezone.utc)
+    ticket.checked_in_by = current_user.id
 
-    log = CheckInLog(id=uuid4(), attendee_id=attendee.id, user_id=current_user.id)
-    session.add(attendee)
+    log = CheckInLog(id=uuid4(), attendee_id=ticket.attendee_id, user_id=current_user.id)
+    session.add(ticket)
     session.add(log)
     session.commit()
-    session.refresh(attendee)
+    session.refresh(ticket)
     return {
         "message": "Attendee checked in successfully",
         "check_in_log": log
@@ -382,7 +399,7 @@ def check_in_attendee(ticket_code: str, session: SessionDep, current_user: User 
 
 @app.delete("/attendees/{attendee_id}", response_model=CheckInResponse, status_code=status.HTTP_200_OK)
 def delete_attendee(attendee_id: UUID, session: SessionDep, current_user: User = Depends(get_current_user)):
-    attendee = session.get(Attendee, attendee_id)
+    attendee = session.get(User, attendee_id)
     if attendee is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
