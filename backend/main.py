@@ -68,7 +68,7 @@ class User(SQLModel, table=True):
     name: str = Field(index=True)
     email: str | None = Field(default=None, index=True)
     password: str | None = Field(default=None, index=True)
-    role: EventRole = Field(default=EventRole.attendee, index=True)
+    role: EventRole = Field(default=EventRole.user, index=True)
 
 class CheckInLog(SQLModel, table=True):
     id: UUID | None = Field(default_factory=uuid4, primary_key=True)
@@ -370,28 +370,28 @@ def read_attendee(attendee_id: UUID, session: SessionDep, current_user: User = D
 
 @app.post("/attendees/{ticket_code}/check-in", response_model=CheckInResponse, status_code=status.HTTP_201_CREATED)
 def check_in_attendee(ticket_code: str, session: SessionDep, current_user: User = Depends(get_current_user)):
-    attendee = session.exec(
-        select(User).where(User.ticket_code == ticket_code)
+    ticket = session.exec(
+        select(Ticket).where(Ticket.code == ticket_code)
     ).one_or_none()
-    if attendee is None:
+    if ticket is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Attendee not found"
+            detail="Ticket not found"
         )
-    if attendee.checked_in:
+    if ticket.checked_in:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Attendee already checked in at " + attendee.checked_in_at.isoformat()
+            detail="Attendee already checked in at " + ticket.checked_in_at.isoformat()
         )
-    attendee.checked_in = True
-    attendee.checked_in_at = datetime.now(timezone.utc)
-    attendee.checked_in_by = current_user.id
+    ticket.checked_in = True
+    ticket.checked_in_at = datetime.now(timezone.utc)
+    ticket.checked_in_by = current_user.id
 
-    log = CheckInLog(id=uuid4(), attendee_id=attendee.id, user_id=current_user.id)
-    session.add(attendee)
+    log = CheckInLog(id=uuid4(), attendee_id=ticket.attendee_id, user_id=current_user.id)
+    session.add(ticket)
     session.add(log)
     session.commit()
-    session.refresh(attendee)
+    session.refresh(ticket)
     return {
         "message": "Attendee checked in successfully",
         "check_in_log": log
