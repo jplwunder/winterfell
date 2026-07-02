@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from sqlmodel import Session, text
 
-from app.database import engine
+from backend.app.core.database import engine
 
 router = APIRouter(tags=["misc"])
 

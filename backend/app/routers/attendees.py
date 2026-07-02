@@ -6,16 +6,16 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import select
 
-from app.database import SessionDep
-from app.models import CheckInLog, EventMembership, EventRole, User
+from backend.app.core.database import SessionDep
+from app.models import CheckInLog, EventMembership, EventRole, Ticket, User
 from app.schemas import CheckInResponse, UserCreate, UserList, UserResponse
-from app.security import generate_ticket_code, get_current_user, is_valid_email, require_role
+from backend.app.core.security import generate_ticket_code, get_current_user, is_valid_email, require_role
 
 router = APIRouter(prefix="/attendees", tags=["attendees"])
 
 @router.get("/{event_id}", response_model=UserList, status_code=status.HTTP_200_OK)
 def list_attendees(event_id: UUID, session: SessionDep):
-    attendees = session.exec(select(User).where(User.role == EventRole.attendee and User.id == EventMembership.user_id and EventMembership.event_id == event_id)).all()
+    attendees = session.exec(select(User).where(EventMembership.role == EventRole.attendee and User.id == EventMembership.user_id and EventMembership.event_id == event_id)).all()
     return UserList(users=attendees)
 
 
@@ -84,3 +84,36 @@ def delete_attendee(attendee_id: UUID, session: SessionDep, current_user: User =
     session.delete(attendee)
     session.commit()
     return {"message": "Attendee check-in deleted successfully"}
+
+def create_ticket(
+    event_id: UUID,
+    attendee_id: UUID,
+    session: SessionDep
+):
+
+    membership = session.exec(
+        select(EventMembership).where(
+            EventMembership.event_id == event_id,
+            EventMembership.user_id == attendee_id
+        )
+    ).first()
+
+    if not membership:
+        raise HTTPException(
+            404,
+            "User is not in this event"
+        )
+
+    if membership.role != EventRole.attendee:
+        raise HTTPException(
+            400,
+            "Only attendees can have tickets"
+        )
+
+    ticket = Ticket(
+        attendee_id=attendee_id,
+        event_id=event_id
+    )
+
+    session.add(ticket)
+    session.commit()
