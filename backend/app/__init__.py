@@ -1,1 +1,0 @@
-"""Winterfell backend package."""

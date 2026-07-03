@@ -5,10 +5,10 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session, select
-
-from backend.app.core.config import ALGORITHM, SECRET_KEY
-from backend.app.core.database import get_session
-from app.models import EventRole, Ticket, User
+from app.core.config import ALGORITHM, SECRET_KEY
+from app.core.database import get_session
+from app.core.roles import EventRole
+from app.users.model import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 

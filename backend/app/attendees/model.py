@@ -1,18 +1,16 @@
-from enum import Enum
-from sched import Event
 import secrets
-
-from sqlmodel import Field, Relationship, SQLModel
-from uuid import UUID, uuid4
 from datetime import datetime
+from uuid import UUID, uuid4
 
-from app.models import EventMembership, EventRole
+from sqlmodel import Field, SQLModel
+
 
 class CheckInLog(SQLModel, table=True):
     id: UUID | None = Field(default_factory=uuid4, primary_key=True)
     ticket_id: UUID = Field(foreign_key="ticket.id")
     checked_by: UUID = Field(foreign_key="user.id")
     created_at: datetime = Field(default_factory=datetime.now, index=True)
+
 
 class Ticket(SQLModel, table=True):
     id: UUID | None = Field(default_factory=uuid4, primary_key=True)

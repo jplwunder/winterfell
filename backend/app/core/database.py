@@ -12,9 +12,10 @@ engine = create_engine(sqlite_url, echo=True)
 
 
 def create_db_and_tables():
-    # Importa os modelos aqui para garantir que todas as tabelas
-    # já estejam registradas em SQLModel.metadata antes do create_all
-    from app import models  # noqa: F401
+    from app.users import model as user_model  # noqa: F401
+    from app.events import model as event_model  # noqa: F401
+    from app.attendees import model as attendee_model  # noqa: F401
+
     SQLModel.metadata.create_all(engine)
 
 

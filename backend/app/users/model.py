@@ -1,8 +1,12 @@
-
-from sqlmodel import SQLModel
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
-from app.events.model import EventRole, EventMembership, Event
-from sqlmodel import Field, Relationship
+
+from sqlmodel import Field, Relationship, SQLModel
+
+from app.core.roles import EventRole
+
+if TYPE_CHECKING:
+    from app.events.model import EventMembership
 
 
 class User(SQLModel, table=True):
@@ -10,5 +14,4 @@ class User(SQLModel, table=True):
     name: str = Field(index=True)
     email: str | None = Field(default=None, index=True)
     password: str | None = Field(default=None, index=True)
-    role: EventRole = Field(default=EventRole.user, index=True)
     memberships: list["EventMembership"] = Relationship(back_populates="user")
