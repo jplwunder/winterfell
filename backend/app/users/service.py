@@ -51,7 +51,7 @@ def read_user_by_email(email: str, session: Session = Depends(get_session)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    return user
+    return {"email": user.email, "name": user.name, "id": user.id}
 
 
 @router.get("/{user_id}", response_model=User, status_code=status.HTTP_200_OK)

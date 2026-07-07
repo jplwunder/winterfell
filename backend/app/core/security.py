@@ -9,6 +9,7 @@ from app.core.config import ALGORITHM, SECRET_KEY
 from app.core.database import get_session
 from app.core.roles import EventRole
 from app.users.model import User
+from app.attendees.model import Ticket
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -56,10 +57,23 @@ def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Dep
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token"
         )
+    
+def get_event_id_from_ticket_code(ticket_code: str, session: Session = Depends(get_session)) -> UUID:
+    ticket = session.exec(
+        select(Ticket).where(Ticket.ticket_code == ticket_code)
+    ).one_or_none()
+
+    if not ticket:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ticket not found"
+        )
+
+    return ticket.event_id
 
 def require_role(*allowed_roles: EventRole):
-    def role_checker(current_user: User = Depends(get_current_user)) -> User:
-        if current_user.role not in allowed_roles:
+    def role_checker(current_user: User = Depends(get_current_user), event_id: UUID = Depends(get_event_id_from_ticket_code)) -> User:
+        if current_user.get_role(event_id) not in allowed_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not have permission to perform this action"

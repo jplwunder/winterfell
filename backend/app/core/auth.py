@@ -14,12 +14,6 @@ from app.core.security import get_current_user, oauth2_scheme
 
 router = APIRouter(tags=["auth"])
 
-
-@router.get("/auth/")
-async def read_items(token: Annotated[str, Depends(oauth2_scheme)]):
-    return {"token": token}
-
-
 @router.post("/token")
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
