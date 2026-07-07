@@ -6,3 +6,4 @@ __pycache__/
 *.sqlite
 *.db
 *.env
+frontend/node_modules/
