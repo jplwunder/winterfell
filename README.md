@@ -194,23 +194,16 @@ Inside the backend directory:
 
 ```bash
 cd backend
+cd app
 ```
-
-Development mode:
+And to run the backend:
 
 ```bash
-uv run fastapi dev main.py
+uvicorn app.main:app --reload
 ```
 
 This mode automatically reloads the API whenever code changes are detected.
 
-Production mode:
-
-```bash
-uv run fastapi run main.py
-```
-
-This mode is optimized for performance and does not automatically reload code changes.
 
 ---
 

@@ -21,4 +21,4 @@ class User(SQLModel, table=True):
         for membership in self.memberships:
             if membership.event_id == event_id:
                 return membership.role
-            return None
+        return None

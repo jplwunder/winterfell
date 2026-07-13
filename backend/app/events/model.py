@@ -16,8 +16,8 @@ class Event(SQLModel, table=True):
     date: datetime = Field(index=True)
     location: str = Field(index=True)
     description: str | None = Field(default=None, index=True)
-    memberships: list["EventMembership"] = Relationship(back_populates="event")
-    tickets: list["Ticket"] = Relationship(back_populates="event")
+    memberships: list["EventMembership"] = Relationship(back_populates="event", sa_relationship_kwargs={"cascade": "all, delete"})
+    tickets: list["Ticket"] = Relationship(back_populates="event", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
 
 
 class EventMembership(SQLModel, table=True):

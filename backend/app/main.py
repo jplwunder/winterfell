@@ -8,7 +8,7 @@ from app.core.misc import router as misc_router
 from app.attendees.service import router as attendees_router
 from app.events.service import router as events_router
 from app.users.service import router as users_router
-
+from fastapi.middleware.cors import CORSMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -19,6 +19,14 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     lifespan=lifespan,
     swagger_ui_parameters={"persistAuthorization": True}
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(misc_router)

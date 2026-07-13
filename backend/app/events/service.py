@@ -1,4 +1,5 @@
 from asyncio import events
+from datetime import datetime, timezone
 import hashlib
 from typing import Dict
 from uuid import UUID, uuid4
@@ -8,11 +9,13 @@ from sqlmodel import Session, select
 
 from app.core.database import get_session
 from app.core.roles import EventRole
-from app.core.security import get_current_user
+from app.core.security import get_current_user, require_event_role
 from app.events.model import Event, EventMembership
 from app.events.schema import EventCreate, EventList, EventResponse, RoleUpdate
 from app.core.security import require_role
 from app.users.model import User
+from app.attendees.model import CheckInLog, Ticket
+from app.attendees.schema import CheckInResponse, TicketList, TicketResponse, TicketRead
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -108,8 +111,8 @@ def read_event(event_id: UUID, session: Session = Depends(get_session)):
 
 
 @router.delete("/{event_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
-def delete_event(event_id: UUID, session: Session = Depends(require_role(EventRole.admin)), current_user: User = Depends(get_current_user)):
-	statement = select(Event).join(EventMembership, EventMembership.event_id == Event.id).where(Event.id == event_id and EventMembership.user_id == current_user.id)
+def delete_event(event_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(get_current_user), admin_check: User = Depends(require_event_role(EventRole.admin))):
+	statement = select(Event).join(EventMembership, EventMembership.event_id == Event.id).where(Event.id == event_id, EventMembership.user_id == current_user.id)
 	event = session.exec(statement).one_or_none()
 	if event is None:
 		raise HTTPException(
@@ -119,3 +122,31 @@ def delete_event(event_id: UUID, session: Session = Depends(require_role(EventRo
 	session.delete(event)
 	session.commit()
 	return {"message": "Event deleted successfully"}
+
+@router.post("/{ticket_code}/check-in", response_model=CheckInResponse, status_code=status.HTTP_201_CREATED)
+def check_in_attendee(ticket_code: str, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff))):
+    attendee = session.exec(
+        select(Ticket).where(Ticket.ticket_code == ticket_code)
+    ).one_or_none()
+    if attendee is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Attendee not found"
+        )
+    if attendee.checked_in:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Attendee already checked in at " + attendee.checked_in_at.isoformat()
+        )
+    attendee.checked_in = True
+    attendee.checked_in_at = datetime.now(timezone.utc)
+
+    log = CheckInLog(id=uuid4(), ticket_id=attendee.id, checked_by=current_user.id)
+    session.add(attendee)
+    session.add(log)
+    session.commit()
+    session.refresh(attendee)
+    return {
+        "message": "Attendee checked in successfully",
+        "check_in_log": log
+    }
