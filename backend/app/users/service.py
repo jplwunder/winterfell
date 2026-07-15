@@ -7,7 +7,6 @@ from sqlmodel import Session, select
 
 from app.core.database import get_session
 from app.core.roles import EventRole
-from app.events.model import EventMembership
 from app.users.model import User
 from app.users.schema import UserCreate, UserList, UserResponse
 from app.core.security import is_valid_email

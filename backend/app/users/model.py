@@ -14,11 +14,10 @@ class User(SQLModel, table=True):
     name: str = Field(index=True)
     email: str | None = Field(default=None, index=True)
     password: str | None = Field(default=None, index=True)
-    memberships: list["EventMembership"] = Relationship(back_populates="user")
     tickets: list["Ticket"] = Relationship(back_populates="attendee")
 
     def get_role(self, event_id: UUID) -> EventRole | None:
-        for membership in self.memberships:
-            if membership.event_id == event_id:
-                return membership.role
+        for ticket in self.tickets:
+            if ticket.event_id == event_id:
+                return ticket.role
         return None

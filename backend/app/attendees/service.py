@@ -10,7 +10,7 @@ from app.core.database import get_session
 from app.core.roles import EventRole
 from app.attendees.model import CheckInLog, Ticket
 from app.attendees.schema import CheckInResponse, TicketList, TicketResponse, TicketRead
-from app.events.model import Event, EventMembership, ParticipantList, ParticipantOut
+from app.events.model import Event, ParticipantList, ParticipantOut
 from app.users.model import User
 from app.users.schema import UserCreate, UserList, UserResponse
 from app.core.security import generate_ticket_code, get_current_user, is_valid_email, require_role
@@ -24,9 +24,9 @@ def list_organizers(
     current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)),
 ):
     statement = (
-        select(User, EventMembership.role)
-        .join(EventMembership, EventMembership.user_id == User.id)
-        .where(EventMembership.event_id == event_id)
+        select(User, Ticket.role)
+        .join(Ticket, Ticket.attendee_id == User.id)
+        .where(Ticket.event_id == event_id)
     )
     rows = session.exec(statement).all()
 
@@ -133,7 +133,8 @@ def create_ticket(
 
     ticket = Ticket(
         attendee_id=current_user.id,
-        event_id=event_id
+        event_id=event_id,
+        role=EventRole.attendee
     )
 
     session.add(ticket)

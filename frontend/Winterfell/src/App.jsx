@@ -492,6 +492,20 @@ function Dashboard({ api, events, eventsLoading, eventsError, onRefresh, onOpenE
   const [joinValue, setJoinValue] = useState("");
   const [joinLoading, setJoinLoading] = useState(false);
   const [joinError, setJoinError] = useState("");
+  const roleConfig = {
+  admin: {
+    tone: "admin",
+    label: "Administrador",
+    },
+  staff: {
+    tone: "staff",
+    label: "Equipe",
+    },
+  attendee: {
+    tone: "attendee",
+    label: "Participante",
+    },
+  };
 
   async function handleCreate() {
     setCreating(true);
@@ -601,8 +615,8 @@ function Dashboard({ api, events, eventsLoading, eventsError, onRefresh, onOpenE
               <Card className="p-5 transition-all duration-200 hover:border-primary/50 hover:shadow-sm">
                 <div className="mb-3 flex items-start justify-between gap-2">
                   <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">{ev.name}</h3>
-                  <Badge tone={ev.role === "admin" ? "admin" : "staff"}>
-                    {ev.role === "admin" ? "Administrador" : "Equipe"}
+                  <Badge tone={roleConfig[ev.role].tone}>
+                    {roleConfig[ev.role].label}
                   </Badge>
                 </div>
                 <div className="space-y-1.5 text-xs text-muted-foreground">
@@ -705,6 +719,9 @@ function EventDetail({ api, event, currentUser, onBack, onDeleted }) {
   const [checkinLoading, setCheckinLoading] = useState(false);
   const [checkinResult, setCheckinResult] = useState(null);
 
+  const [checkinLogs, setCheckinLogs] = useState([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -748,6 +765,48 @@ function EventDetail({ api, event, currentUser, onBack, onDeleted }) {
     return () => { isMounted = false; };
   }, [tickets, usersCache, api]);
 
+  const loadCheckInLogs = useCallback(async () => {
+    if (!event?.id || !myTicket?.ticket_code) return;
+    setLogsLoading(true);
+    try {
+    // Rota que busca os logs de check-in deste evento
+    // (Ajuste o endpoint de acordo com a rota do seu backend, ex: /events/{id}/check-in-logs)
+      const data = await api(`/events/${event.id}/check-in-logs?ticket_code=${encodeURIComponent(myTicket.ticket_code)}`);
+      setCheckinLogs(data.logs ?? []);
+      } catch (e) {
+      console.error("Erro ao carregar logs de check-in:", e.message);
+      } finally {
+      setLogsLoading(false);
+    }
+  }, [api, event.id, myTicket]);
+
+  // Carrega os logs ao selecionar a aba de check-in
+  useEffect(() => {
+    if (tab === "checkin" && isStaffOrAdmin) {
+      loadCheckInLogs();
+    }
+  }, [tab, isStaffOrAdmin, loadCheckInLogs]);
+
+  // Modifique a função handleCheckIn para recarregar os logs logo após uma validação bem-sucedida
+  async function handleCheckIn() {
+    if (!checkinCode) return;
+    setCheckinLoading(true);
+    setCheckinResult(null);
+    try {
+      const data = await api(`/events/${checkinCode.trim()}/check-in`, { method: "POST" });
+      setCheckinResult({ tone: "success", text: data.message });
+      setCheckinCode("");
+    
+    // Atualiza os dados na tela
+      loadTickets();
+      loadCheckInLogs(); 
+    } catch (e) {
+      setCheckinResult({ tone: "error", text: e.message });
+    } finally {
+      setCheckinLoading(false);
+    }
+  }
+
   async function handleGetTicket() {
     setTicketActionLoading(true);
     setTicketActionError("");
@@ -770,7 +829,8 @@ function EventDetail({ api, event, currentUser, onBack, onDeleted }) {
       const data = await api(
         `/attendees/${event.id}?ticket_code=${encodeURIComponent(myTicket.ticket_code)}`
       );
-      setOrganizers(data.users);
+      const organizersList = data.users.filter((t) => t.role === "admin" || t.role === "staff");
+      setOrganizers(organizersList);
     } catch (e) {
       setOrganizersError(e.message);
     } finally {
@@ -823,6 +883,8 @@ function EventDetail({ api, event, currentUser, onBack, onDeleted }) {
     }
   }
 
+
+
   async function handleDeleteEvent() {
     if (!myTicket) return;
     setDeleteLoading(true);
@@ -843,10 +905,10 @@ function EventDetail({ api, event, currentUser, onBack, onDeleted }) {
   const tabList = useMemo(() => {
     const items = [
       { id: "overview", label: "Visão Geral", icon: Info },
-      { id: "ticket", label: "Meu Ingresso", icon: TicketIcon },
-      { id: "participants", label: "Inscritos", icon: Users },
+      { id: "ticket", label: "Meu Ingresso", icon: TicketIcon }
     ];
     if (isStaffOrAdmin) {
+      items.push({ id: "participants", label: "Inscritos", icon: Users });
       items.push({ id: "team", label: "Organizadores", icon: ShieldCheck });
       items.push({ id: "checkin", label: "Portaria & Check-in", icon: ScanLine });
     }
@@ -992,7 +1054,7 @@ function EventDetail({ api, event, currentUser, onBack, onDeleted }) {
           {ticketActionError && <Alert tone="error">{ticketActionError}</Alert>}
         </div>
       )}
-      {tab === "participants" && (
+      {tab === "participants" && isStaffOrAdmin && (
         <Card className="overflow-hidden">
           {ticketsLoading ? (
             <div className="flex justify-center py-14">
@@ -1114,24 +1176,26 @@ function EventDetail({ api, event, currentUser, onBack, onDeleted }) {
           )}
         </div>
       )}
-
-      {tab === "checkin" && isStaffOrAdmin && (
-        <Card className="p-5 max-w-xl mx-auto">
+  {tab === "checkin" && isStaffOrAdmin && (
+    <div className="grid gap-6 md:grid-cols-5 max-w-5xl mx-auto">
+      {/* Formulário de Leitura / Entrada (Colunas: 2 de 5) */}
+      <div className="md:col-span-2">
+        <Card className="p-5">
           <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-foreground">
             <ScanLine className="h-4 w-4 text-primary" /> Validar Entrada
           </h3>
           <p className="mb-4 text-xs text-muted-foreground">
             Insira o código alfanumérico do canhoto do ingresso apresentado pelo participante para registrar a presença imediata.
           </p>
-          <div className="flex flex-col gap-2 sm:flex-row">
+          <div className="flex flex-col gap-2">
             <Input
               placeholder="Código do Ingresso (ex: TKT-123456)"
-              value={checkinCode}
+              value={checkinCode || ""}
               onChange={(e) => setCheckinCode(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && checkinCode && handleCheckIn()}
               className="font-mono uppercase placeholder:normal-case tracking-wider"
             />
-            <Button onClick={handleCheckIn} disabled={!checkinCode || checkinLoading}>
+            <Button className="w-full" onClick={handleCheckIn} disabled={!checkinCode || checkinLoading}>
               {checkinLoading ? <Spinner /> : <ScanLine className="h-4 w-4" />}
               Dar Check-in
             </Button>
@@ -1142,10 +1206,80 @@ function EventDetail({ api, event, currentUser, onBack, onDeleted }) {
             </div>
           )}
         </Card>
-      )}
+      </div>
+
+      {/* Histórico/Log de Check-ins (Colunas: 3 de 5) */}
+      <div className="md:col-span-3">
+        <Card className="overflow-hidden h-[400px] flex flex-col">
+          <div className="border-b border-border bg-muted/40 px-5 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Fluxo de Entrada em Tempo Real
+              </h3>
+            </div>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={loadCheckInLogs} disabled={logsLoading}>
+              {logsLoading ? <Spinner /> : "Atualizar"}
+            </Button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto divide-y divide-border">
+            {logsLoading && (!checkinLogs || checkinLogs.length === 0) ? (
+              <div className="flex items-center justify-center h-full">
+                <Spinner className="h-6 w-6 text-muted-foreground" />
+              </div>
+            ) : (!checkinLogs || checkinLogs.length === 0) ? (
+              <div className="flex flex-col items-center justify-center h-full text-center p-6 text-muted-foreground">
+                <Users className="h-8 w-8 mb-2 opacity-40" />
+                <p className="text-sm font-medium">Nenhum check-in realizado ainda</p>
+                <p className="text-xs max-w-[240px] mx-auto mt-1">
+                  As entradas validadas aparecerão aqui listando quem liberou o acesso.
+                </p>
+              </div>
+            ) : (
+              checkinLogs.map((log) => {
+                // Formatação segura da data caso formatDateTime não esteja escopado
+                const dataFormatada = log?.checked_at 
+                  ? new Date(log.checked_at).toLocaleString('pt-BR') 
+                  : "Data pendente";
+
+                return (
+                  <div key={log?.id} className="p-4 hover:bg-muted/10 transition-colors flex items-center justify-between gap-4 animate-in fade-in duration-150">
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-foreground font-mono uppercase tracking-wider">
+                        {log?.ticket_code || "Ingresso n/a"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Participante: <span className="font-semibold text-foreground">{log?.attendee_name || "Desconhecido"}</span>
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/80 flex items-center gap-1">
+                        Operador: <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-[9px]">
+                          {log?.checked_by_name || "Sistema"}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <Badge tone="success" className="text-[10px] py-0.5 px-2">Liberado</Badge>
+                      <p className="text-[10px] text-muted-foreground mt-1.5">
+                        {dataFormatada}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </Card>
+      </div>
     </div>
+  )}
+</div>
   );
 }
+
 
 // ---------------------------------------------------------------------------
 // Componente de Layout Superior: Header

@@ -10,7 +10,6 @@ from app.core.database import get_session
 from app.core.roles import EventRole
 from app.users.model import User
 from app.attendees.model import Ticket
-from app.events.model import EventMembership
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
