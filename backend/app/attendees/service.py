@@ -17,7 +17,7 @@ from app.core.security import generate_ticket_code, get_current_user, is_valid_e
 
 router = APIRouter(prefix="/attendees", tags=["attendees"])
 
-@router.get("/organizers/{event_id}", response_model=ParticipantList, status_code=status.HTTP_200_OK)
+@router.get("/{event_id}", response_model=ParticipantList, status_code=status.HTTP_200_OK)
 def list_organizers(
     event_id: UUID,
     session: Session = Depends(get_session),
@@ -36,7 +36,7 @@ def list_organizers(
     ]
     return ParticipantList(users=organizers)
 
-@router.get("/participants/{event_id}", response_model=TicketList, status_code=status.HTTP_200_OK)
+@router.post("/{event_id}", response_model=TicketList, status_code=status.HTTP_200_OK)
 def list_participants(
     event_id:UUID,
     current_user: User = Depends(get_current_user),
@@ -51,7 +51,7 @@ def list_participants(
 
 
 @router.get(
-    "/participants/{event_id}/tickets/{ticket_code}",
+    "/events/{event_id}/tickets/{ticket_code}",
     response_model=TicketResponse,
 )
 def get_participant_by_ticket_code(
@@ -104,7 +104,7 @@ def delete_attendee(attendee_id: UUID, session: Session = Depends(get_session), 
     return {"message": "Attendee check-in deleted successfully"}
 
 
-@router.post("/tickets/", response_model=TicketResponse)
+@router.post("/", response_model=TicketResponse)
 def create_ticket(
     event_id: UUID,
     session: Session = Depends(get_session),

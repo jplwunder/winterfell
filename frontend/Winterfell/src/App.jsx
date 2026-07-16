@@ -28,6 +28,8 @@ import {
   Info,
 } from "lucide-react";
 
+import { useTheme } from "./components/theme-provider";
+
 // ---------------------------------------------------------------------------
 // Configuração da URL da API do FastAPI
 // ---------------------------------------------------------------------------
@@ -811,7 +813,7 @@ function EventDetail({ api, event, currentUser, onBack, onDeleted }) {
     setTicketActionLoading(true);
     setTicketActionError("");
     try {
-      const data = await api(`/attendees/?event_id=${event.id}`, { method: "POST" });
+      const data = await api(`/attendees/${event.id}`, { method: "POST" });
       setMyTicket(data.ticket);
       setTickets((prev) => [...prev, data.ticket]);
     } catch (e) {
@@ -1285,7 +1287,9 @@ function EventDetail({ api, event, currentUser, onBack, onDeleted }) {
 // Componente de Layout Superior: Header
 // ---------------------------------------------------------------------------
 
-function Header({ user, darkMode, onToggleDark, onLogout, onLogoClick }) {
+function Header({ user, onLogout, onLogoClick }) {
+  const { theme, setTheme } = useTheme();
+  const isDark = theme === "dark" || (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
@@ -1298,11 +1302,11 @@ function Header({ user, darkMode, onToggleDark, onLogout, onLogoClick }) {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={onToggleDark}
+            onClick={() => setTheme(isDark ? "light" : "dark")}
             className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground cursor-pointer"
             aria-label="Trocar cor tema"
           >
-            {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
 
           <div className="mx-1 hidden items-center gap-2 rounded-full border border-border py-1 pl-1 pr-3 sm:flex bg-muted/30">
@@ -1331,7 +1335,6 @@ export default function App() {
     const saved = localStorage.getItem("ev_user");
     return saved ? JSON.parse(saved) : null;
   });
-  const [darkMode, setDarkMode] = useState(false);
 
   const [view, setView] = useState("dashboard"); 
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -1407,7 +1410,6 @@ export default function App() {
   }
 
   return (
-    <div className={darkMode ? "dark" : ""}>
       <div className="min-h-screen bg-background font-sans text-foreground transition-colors duration-200">
         {!token || !currentUser ? (
           <AuthScreen api={api} onAuthenticated={handleAuthenticated} />
@@ -1415,8 +1417,6 @@ export default function App() {
           <>
             <Header
               user={currentUser}
-              darkMode={darkMode}
-              onToggleDark={() => setDarkMode((prev) => !prev)}
               onLogout={handleLogout}
               onLogoClick={handleBackToDashboard}
             />
@@ -1444,6 +1444,5 @@ export default function App() {
           </>
         )}
       </div>
-    </div>
   );
 }
