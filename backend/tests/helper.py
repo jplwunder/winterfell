@@ -7,7 +7,7 @@ def random_email():
     return random_string(10) + "@example.com"
 
 def create_user_test(client, name, email, age, password):
-    response = client.post("/users/", json={
+    response = client.post("/users", json={
         "name": name,
         "email": email,
         "age": age,
@@ -50,7 +50,7 @@ def get_auth_token(client):
         "password123"
     )
 
-    login = client.post("/token", data={
+    login = client.post("/login", data={
         "username": user["email"],
         "password": "password123"
     })

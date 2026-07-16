@@ -17,7 +17,7 @@ from app.core.security import generate_ticket_code, get_current_user, is_valid_e
 
 router = APIRouter(prefix="/attendees", tags=["attendees"])
 
-@router.get("/{event_id}", response_model=ParticipantList, status_code=status.HTTP_200_OK)
+@router.get("/organizers/{event_id}", response_model=ParticipantList, status_code=status.HTTP_200_OK)
 def list_organizers(
     event_id: UUID,
     session: Session = Depends(get_session),
@@ -36,7 +36,7 @@ def list_organizers(
     ]
     return ParticipantList(users=organizers)
 
-@router.post("/{event_id}", response_model=TicketList, status_code=status.HTTP_200_OK)
+@router.get("/participants/{event_id}", response_model=TicketList, status_code=status.HTTP_200_OK)
 def list_participants(
     event_id:UUID,
     current_user: User = Depends(get_current_user),
@@ -91,9 +91,9 @@ def read_attendee(attendee_id: UUID, session: Session = Depends(get_session), cu
         )
     return attendee
 
-@router.delete("/{attendee_id}", response_model=CheckInResponse, status_code=status.HTTP_200_OK)
-def delete_attendee(attendee_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff))):
-    attendee = session.exec(select(User).where(User.id == attendee_id and User.id == current_user.id)).one_or_none()
+@router.delete("/{id}", response_model=CheckInResponse, status_code=status.HTTP_200_OK)
+def delete_attendee(id: UUID, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff))):
+    attendee = session.exec(select(User).where(User.id == id and User.id == current_user.id)).one_or_none()
     if attendee is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -104,7 +104,7 @@ def delete_attendee(attendee_id: UUID, session: Session = Depends(get_session), 
     return {"message": "Attendee check-in deleted successfully"}
 
 
-@router.post("/", response_model=TicketResponse)
+@router.post("/tickets", response_model=TicketResponse)
 def create_ticket(
     event_id: UUID,
     session: Session = Depends(get_session),

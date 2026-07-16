@@ -322,7 +322,7 @@ function AuthScreen({ api, onAuthenticated }) {
     setLoading(true);
     setError("");
     try {
-      const tokenData = await api("/token", {
+      const tokenData = await api("/login", {
         form: true,
         method: "POST",
         body: { username: loginForm.email, password: loginForm.password },
@@ -346,7 +346,7 @@ function AuthScreen({ api, onAuthenticated }) {
         password: registerForm.password,
       };
       if (registerForm.age) payload.age = Number(registerForm.age);
-      await api("/users/", { method: "POST", body: payload });
+      await api("/users", { method: "POST", body: payload });
       setNotice("Conta criada com sucesso! Faça login abaixo.");
       setLoginForm({ email: registerForm.email, password: "" });
       setRegisterForm({ name: "", email: "", password: "", age: "" });
@@ -732,7 +732,7 @@ function EventDetail({ api, event, currentUser, onBack, onDeleted }) {
     setTicketsLoading(true);
     setTicketsError("");
     try {
-      const data = await api(`/attendees/${event.id}`, { method: "POST" });
+      const data = await api(`/attendees/participants/${event.id}`);
       setTickets(data.tickets);
       const mine = data.tickets.find((t) => t.attendee_id === currentUser.id);
       if (mine) setMyTicket(mine);
@@ -813,7 +813,7 @@ function EventDetail({ api, event, currentUser, onBack, onDeleted }) {
     setTicketActionLoading(true);
     setTicketActionError("");
     try {
-      const data = await api(`/attendees/${event.id}`, { method: "POST" });
+      const data = await api(`/attendees/tickets?event_id=${encodeURIComponent(event.id)}`, { method: "POST" });
       setMyTicket(data.ticket);
       setTickets((prev) => [...prev, data.ticket]);
     } catch (e) {
@@ -829,7 +829,7 @@ function EventDetail({ api, event, currentUser, onBack, onDeleted }) {
     setOrganizersError("");
     try {
       const data = await api(
-        `/attendees/${event.id}?ticket_code=${encodeURIComponent(myTicket.ticket_code)}`
+        `/attendees/organizers/${event.id}?ticket_code=${encodeURIComponent(myTicket.ticket_code)}`
       );
       const organizersList = data.users.filter((t) => t.role === "admin" || t.role === "staff");
       setOrganizers(organizersList);

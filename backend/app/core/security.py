@@ -11,7 +11,7 @@ from app.core.roles import EventRole
 from app.users.model import User
 from app.attendees.model import Ticket
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
