@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from sqlmodel import SQLModel
@@ -6,8 +7,14 @@ from app.attendees.model import CheckInLog, Ticket
 
 
 class CheckInResponse(SQLModel):
-    message: str
-    check_in_log: CheckInLog
+    id: UUID
+    ticket_code: str
+    attendee_name: str
+    checked_by_name: str | None
+    checked_at: datetime
+
+class CheckInLogList(SQLModel):
+    logs: list[CheckInResponse]
 
 
 class TicketCreate(SQLModel):

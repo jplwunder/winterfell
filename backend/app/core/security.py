@@ -11,7 +11,7 @@ from app.core.roles import EventRole
 from app.users.model import User
 from app.attendees.model import Ticket
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
@@ -79,6 +79,20 @@ def require_role(*allowed_roles: EventRole):
                 detail="You do not have permission to perform this action"
             )
         return current_user
+    return role_checker
+
+def require_event_role(*allowed_roles: EventRole):
+    def role_checker(
+        event_id: UUID,
+        current_user: User = Depends(get_current_user),
+    ) -> User:
+        if current_user.get_role(event_id) not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to perform this action"
+            )
+        return current_user
+
     return role_checker
 
 def generate_ticket_code() -> str:

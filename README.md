@@ -194,23 +194,16 @@ Inside the backend directory:
 
 ```bash
 cd backend
+cd app
 ```
-
-Development mode:
+And to run the backend:
 
 ```bash
-uv run fastapi dev main.py
+uvicorn app.main:app --reload
 ```
 
 This mode automatically reloads the API whenever code changes are detected.
 
-Production mode:
-
-```bash
-uv run fastapi run main.py
-```
-
-This mode is optimized for performance and does not automatically reload code changes.
 
 ---
 
@@ -317,31 +310,47 @@ Authentication flow:
 
 # Available Endpoints
 
+### Miscellaneous
+
+* GET `/` - Hello World
+* GET `/db-check`
+
+
 ### Authentication
 
 * POST `/login`
+* GET `/me` - Shows logged user's info
 
 ---
 
-### Customers
+### Users
 
-* POST `/customers`
-* GET `/customers`
-* GET `/customers/{id}`
-* PUT `/customers/{id}`
-* DELETE `/customers/{id}`
+* POST `/users`
+* GET `/users/by-email/{email}`
+* GET `/users/{user_id}`
+* DELETE `/users/{user_id}`
+
+---
+
+### Attendees
+
+* GET `/attendees/organizers/{event_id}`
+* GET `/attendees/participants/{event_id}`
+* GET `/attendees/{attendee_id}`
+* DELETE `/attendees/{id}`
+* POST `/attendees/tickets`
 
 ---
 
-### Orders
+### Events
 
-* POST `/orders`
-* GET `/orders`
-* GET `/orders/{id}`
-* PUT `/orders/{id}`
-* DELETE `/orders/{id}`
-
----
+* GET `/events/`
+* POST `/events/`
+* POST `/events/{event_id}/addstaff/{user_id}`
+* GET `/events/{event_id}`
+* DELETE `/events/{event_id}`
+* POST `/events/{ticket_code}/check-in`
+* GET `/events/{event_id}/check-in-logs`
 
 # Current Development Goals
 

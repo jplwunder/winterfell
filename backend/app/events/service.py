@@ -1,18 +1,26 @@
 from asyncio import events
+from datetime import datetime, timezone
 import hashlib
 from typing import Dict
 from uuid import UUID, uuid4
+from sqlalchemy.orm import aliased
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
 from app.core.database import get_session
 from app.core.roles import EventRole
-from app.core.security import get_current_user
-from app.events.model import Event, EventMembership
+from app.core.security import get_current_user, require_event_role
+from app.events.model import Event
 from app.events.schema import EventCreate, EventList, EventResponse, RoleUpdate
 from app.core.security import require_role
 from app.users.model import User
+from app.attendees.model import CheckInLog, Ticket
+from app.attendees.schema import CheckInLogList, CheckInResponse, TicketList, TicketResponse, TicketRead
+
+
+Attendee = aliased(User)
+Operator = aliased(User)
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -30,8 +38,8 @@ def create_event(event: EventCreate, session: Session = Depends(get_session), cu
 	session.commit()
 	session.refresh(event)
 
-	membership = EventMembership(event_id=event.id, user_id=current_user.id, role=EventRole.admin)
-	session.add(membership)
+	owner_ticket = Ticket(event_id=event.id, attendee_id=current_user.id, role=EventRole.admin, checked_in=True, checked_in_at=datetime.now(timezone.utc))
+	session.add(owner_ticket)
 	session.commit()
 	return {
 		"message": "Event created successfully",
@@ -53,20 +61,20 @@ def add_staff(user_id: UUID, event_id: UUID, session: Session = Depends(get_sess
 			status_code=status.HTTP_404_NOT_FOUND,
 			detail="User not found"
 		)
-	existing_membership = session.exec(
-		select(EventMembership).where(
-			EventMembership.event_id == event.id,
-			EventMembership.user_id == staff.id
+	existing_ticket = session.exec(
+		select(Ticket).where(
+			Ticket.event_id == event.id,
+			Ticket.attendee_id == staff.id
 		)
 	).first()
-	if existing_membership and existing_membership.role == EventRole.admin:
+	if existing_ticket and existing_ticket.role != EventRole.attendee:
 		raise HTTPException(
 			status_code=status.HTTP_400_BAD_REQUEST,
-			detail="Admin already a member of this event"
+			detail="A staff member with this user ID already exists for this event"
 		)
-	
-	membership = EventMembership(event_id=event.id, user_id=staff.id, role=EventRole.staff)
-	session.add(membership)
+	session.delete(existing_ticket)
+	ticket = Ticket(event_id=event.id, attendee_id=staff.id, role=EventRole.staff)
+	session.add(ticket)
 	session.commit()
 	return {
 		"message": "Staff member added to event successfully",
@@ -77,9 +85,9 @@ def add_staff(user_id: UUID, event_id: UUID, session: Session = Depends(get_sess
 @router.get("/", response_model=EventList, status_code=status.HTTP_200_OK)
 def list_events(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
 	statement = (
-		select(Event, EventMembership.role)
-		.join(EventMembership, EventMembership.event_id == Event.id)
-		.where(EventMembership.user_id == current_user.id)
+		select(Event, Ticket.role)
+		.join(Ticket, Ticket.event_id == Event.id)
+		.where(Ticket.attendee_id == current_user.id)
 	)
 	results = session.exec(statement).all()
 	events = [
@@ -108,8 +116,8 @@ def read_event(event_id: UUID, session: Session = Depends(get_session)):
 
 
 @router.delete("/{event_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
-def delete_event(event_id: UUID, session: Session = Depends(require_role(EventRole.admin)), current_user: User = Depends(get_current_user)):
-	statement = select(Event).join(EventMembership, EventMembership.event_id == Event.id).where(Event.id == event_id and EventMembership.user_id == current_user.id)
+def delete_event(event_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(get_current_user), admin_check: User = Depends(require_event_role(EventRole.admin))):
+	statement = select(Event).join(Ticket, Ticket.event_id == Event.id).where(Event.id == event_id, Ticket.attendee_id == current_user.id)
 	event = session.exec(statement).one_or_none()
 	if event is None:
 		raise HTTPException(
@@ -119,3 +127,59 @@ def delete_event(event_id: UUID, session: Session = Depends(require_role(EventRo
 	session.delete(event)
 	session.commit()
 	return {"message": "Event deleted successfully"}
+
+@router.post("/{ticket_code}/check-in", response_model=CheckInResponse, status_code=status.HTTP_201_CREATED)
+def check_in_attendee(ticket_code: str, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff))):
+    attendee = session.exec(
+        select(Ticket).where(Ticket.ticket_code == ticket_code)
+    ).one_or_none()
+    if attendee is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Attendee not found"
+        )
+    if attendee.checked_in:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Attendee already checked in at " + attendee.checked_in_at.isoformat()
+        )
+    attendee.checked_in = True
+    attendee.checked_in_at = datetime.now(timezone.utc)
+
+    log = CheckInLog(id=uuid4(), ticket_id=attendee.id, checked_by=current_user.id)
+    session.add(attendee)
+    session.add(log)
+    session.commit()
+    session.refresh(attendee)
+    return {
+        "message": "Attendee checked in successfully",
+        "check_in_log": log
+    }
+
+@router.get("/{event_id}/check-in-logs", response_model=CheckInLogList, status_code=status.HTTP_200_OK)
+def get_check_in_logs(event_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff))):
+	logs = session.exec(
+    select(
+        CheckInLog.id,
+        Ticket.ticket_code,
+        Attendee.name.label("attendee_name"),
+        Operator.name.label("checked_by_name"),
+        CheckInLog.checked_at,
+    )
+    .join(Ticket, Ticket.id == CheckInLog.ticket_id)
+    .join(Attendee, Attendee.id == Ticket.attendee_id)
+    .join(Operator, Operator.id == CheckInLog.checked_by)
+    .where(Ticket.event_id == event_id)
+	).all()
+	return CheckInLogList(
+    logs=[
+        CheckInResponse(
+            id=row.id,
+            ticket_code=row.ticket_code,
+            attendee_name=row.attendee_name,
+            checked_by_name=row.checked_by_name,
+            checked_at=row.checked_at,
+        )
+        for row in logs
+    ]
+)

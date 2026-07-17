@@ -19,7 +19,7 @@ def test_create_user_with_existing_email(client):
 
     create_user_test(client, "Jake Paul", email, 30, "password123")
 
-    response = client.post("/users/", json={
+    response = client.post("/users", json={
         "name": "Jane Doe",
         "email": email,
         "age": 25,
@@ -30,7 +30,7 @@ def test_create_user_with_existing_email(client):
     assert data["detail"] == "Email already registered"
 
 def test_create_user_with_invalid_email(client):
-    response = client.post("/users/", json={
+    response = client.post("/users", json={
         "name": "Jane Doe",
         "email": "invalid-email",
         "age": 25,
@@ -42,7 +42,7 @@ def test_create_user_with_invalid_email(client):
     assert data["detail"] == "Invalid email format"
 
 def test_create_underage_user(client):
-    response = client.post("/users/", json={
+    response = client.post("/users", json={
         "name": "Young User",
         "email": random_email(),
         "age": 17,

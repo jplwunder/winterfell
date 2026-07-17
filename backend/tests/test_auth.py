@@ -17,7 +17,7 @@ def test_login(client):
     # First, create a user
     create_user_test(client, random_string(10), email, 30, password)
 
-    response = client.post("/token", data={
+    response = client.post("/login", data={
         "username": email,
         "password": password
     })
@@ -35,7 +35,7 @@ def test_login_with_wrong_password(client):
     # First, create a user
     create_user_test(client, random_string(10), email, 30, password)
 
-    response = client.post("/token", data={
+    response = client.post("/login", data={
         "username": email,
         "password": "wrongpassword"
     })
@@ -48,7 +48,7 @@ def test_login_with_nonexistent_user(client):
     
     email = ''.join(random.choices(string.ascii_lowercase, k=10)) + "@example.com"
 
-    response = client.post("/token", data={
+    response = client.post("/login", data={
         "username": email,
         "password": "password123"
     })
@@ -65,7 +65,7 @@ def test_me(client):
     # First, create a user
     create_user_test(client, random_string(10), email, 30, password)
 
-    response_login = client.post("/token", data={
+    response_login = client.post("/login", data={
         "username": email,
         "password": password
     })
@@ -136,4 +136,3 @@ def test_auth_with_missing_token(client):
     assert response_me.status_code == 401
     data_me = response_me.json()
     assert data_me["detail"] == "Not authenticated"
-

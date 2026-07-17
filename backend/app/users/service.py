@@ -7,7 +7,6 @@ from sqlmodel import Session, select
 
 from app.core.database import get_session
 from app.core.roles import EventRole
-from app.events.model import EventMembership
 from app.users.model import User
 from app.users.schema import UserCreate, UserList, UserResponse
 from app.core.security import is_valid_email
@@ -15,7 +14,7 @@ from app.core.security import is_valid_email
 router = APIRouter(prefix="/users", tags=["users"])
 
 
-@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate, session: Session = Depends(get_session)):
     user = User(id=uuid4(), **user.model_dump())
     hashed_password = hashlib.sha256(user.password.encode()).hexdigest() if user.password else None
