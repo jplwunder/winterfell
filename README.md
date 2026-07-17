@@ -1,82 +1,109 @@
 # Winterfell
 
-Winterfell is a backend-focused web application built with Python using the FastAPI framework. The goal of this project is to provide a small and extensible REST API architecture with authentication, database persistence, and automated testing.
+Winterfell is a full-stack event management application built with **Python**, **FastAPI**, **SQLModel**, **SQLite**, **React**, and **Vite**.
 
-The project currently uses SQLModel with SQLite for local development and is actively being expanded with frontend integration.
+The project provides an API for managing users, events, tickets, event staff, attendee registration, authentication, and check-in operations.
 
 **Status:** Work in Progress (WIP)
 
 ---
 
-# Features
+## Features
 
-Currently implemented:
+### Authentication
 
-* JWT-based authentication system
-* Customer CRUD operations
-* Order CRUD operations
+* JWT-based authentication
+* User login
+* Protected API routes
+* Role-based permissions
+
+### User Management
+
+* User creation
+* User lookup
+* User deletion
+* Authenticated user information
+
+### Event Management
+
+* Create events
+* List events
+* Get event details
+* Delete events
+* Add staff members to events
+* Event-specific roles and permissions
+
+### Ticket Management
+
+* Create attendee tickets
+* Ticket-based event access
+* Ticket cancellation
+* Ticket status management
+
+### Check-in System
+
+* Ticket check-in
+* Check-in validation
+* Check-in timestamps
+* Check-in history and logs
+* Staff and administrator permissions
+
+### Other Features
+
 * SQLite database persistence
+* Automatic API documentation with FastAPI
 * Automated testing with Pytest
-* Environment variable support using `.env`
-* API documentation generated automatically by FastAPI
-
-Planned features:
-
-* Frontend integration using React
-* Cloud deployment
-* Better project modularization
-* Improved validation and exception handling
+* Environment variable support
+* React frontend integration
 
 ---
 
-# Tech Stack
+## Tech Stack
 
-Backend technologies currently used:
+### Backend
 
 * Python 3.13
 * FastAPI
 * SQLModel
 * SQLite
-* JWT Authentication
-* Pytest
+* PyJWT
 * Uvicorn
+* Pytest
+* pytest-cov
 * uv
 
-Frontend (in development):
+### Frontend
 
 * React
+* Vite
+* JavaScript
 
 ---
 
-# Prerequisites
+## Project Structure
 
-Before running the project, make sure you have installed:
-
-* Python 3.11 or newer (recommended)
-* Git
-
-Optional but recommended:
-
-* uv for dependency management
-
----
-
-# Project Structure
-
-```bash
+```text
 Winterfell/
 │
 ├── backend/
-│   ├── main.py
-│   ├── tests/
-│   ├── database.sqlite
+│   │
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── attendees/
+│   │   ├── core/
+│   │   ├── events/
+│   │   ├── users/
+│   │   ├── database.sqlite
+│   │   └── ...
+│   │
 │   ├── pyproject.toml
 │   ├── pytest.ini
 │   ├── .env
-│   └── .venv
+│   └── .venv/
 │
 ├── frontend/
 │   ├── src/
+│   ├── public/
 │   ├── package.json
 │   ├── package-lock.json
 │   └── vite.config.js
@@ -84,19 +111,39 @@ Winterfell/
 └── README.md
 ```
 
-* `backend/` → API source code and tests
-* `frontend/` → Frontend application (currently under development)
+### Main directories
+
+* `backend/app/` → FastAPI application source code
+* `frontend/` → React frontend application
+* `database.sqlite` → Local development database
 
 ---
 
-# Installation
+## Prerequisites
 
-Clone the repository:
+Before running the project, make sure you have installed:
+
+* Python 3.11 or newer
+* Node.js
+* npm
+* Git
+
+The project uses **uv** for Python dependency management.
+
+---
+
+## Installation
+
+### 1. Clone the repository
 
 ```bash
 git clone <repository-url>
 cd Winterfell
 ```
+
+---
+
+### 2. Backend setup
 
 Move into the backend directory:
 
@@ -104,21 +151,23 @@ Move into the backend directory:
 cd backend
 ```
 
-Create a virtual environment:
+Install the Python dependencies using `uv`:
 
 ```bash
-python -m venv .venv
+uv sync
 ```
 
-Activate the virtual environment:
+The virtual environment is automatically managed by `uv`.
 
-Linux / macOS
+If necessary, activate the virtual environment manually.
+
+#### Linux / macOS
 
 ```bash
 source .venv/bin/activate
 ```
 
-Windows
+#### Windows
 
 ```bash
 .venv\Scripts\activate
@@ -126,29 +175,9 @@ Windows
 
 ---
 
-# Installing Dependencies
+## Environment Variables
 
-This project uses uv.
-
-Install dependencies with:
-
-```bash
-uv sync
-```
-
-If you prefer pip:
-
-```bash
-pip install "fastapi[standard]" sqlmodel uvicorn pytest python-dotenv pyjwt
-```
-
----
-
-# Environment Variables
-
-Create a `.env` file inside the `backend` folder.
-
-Example:
+Create a `.env` file inside the `backend` directory:
 
 ```env
 SECRET_KEY=your_secret_key_here
@@ -160,229 +189,239 @@ You can generate a secure secret key using:
 openssl rand -hex 32
 ```
 
-Environment variables currently used:
+### Environment variables
 
-| Variable   | Description                              |
-| ---------- | ---------------------------------------- |
-| SECRET_KEY | Secret key used for JWT token generation |
+| Variable     | Description                                         |
+| ------------ | --------------------------------------------------- |
+| `SECRET_KEY` | Secret key used to generate and validate JWT tokens |
 
----
-
-# Database
-
-The project uses SQLite for local development.
-
-Main database:
-
-```bash
-backend/database.sqlite
-```
-
-Test database:
-
-```bash
-backend/test_database.sqlite
-```
-
-The database is automatically created when running the application.
+> Never commit your `.env` file or secret keys to the repository.
 
 ---
 
-# Running the Application
+## Running the Backend
 
-Inside the backend directory:
-
-```bash
-cd backend
-cd app
-```
-And to run the backend:
+From the `backend` directory, run:
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-This mode automatically reloads the API whenever code changes are detected.
+The `--reload` option automatically restarts the server whenever changes are detected.
 
+The API will be available at:
+
+```text
+http://127.0.0.1:8000
+```
 
 ---
 
-# Frontend Setup
+## Frontend Setup
 
-Move into the frontend directory:
+Open a new terminal and move into the frontend directory:
 
 ```bash
-cd ../frontend
+cd Winterfell/frontend
 ```
 
-Install frontend dependencies:
+Install the frontend dependencies:
 
 ```bash
 npm install
 ```
 
----
-
-# Running Frontend
-
-Inside the frontend folder:
-
-```bash
-cd frontend
-```
-
-Start development server:
+Start the development server:
 
 ```bash
 npm run dev
 ```
 
-The frontend application will be available locally through the Vite development server.
+The frontend will usually be available at:
 
-Example:
-
-```bash
+```text
 http://localhost:5173
 ```
 
-# API Documentation
+---
+
+## API Documentation
 
 FastAPI automatically generates interactive API documentation.
 
-After running the server, open:
+After starting the backend, open:
 
-```bash
+### Swagger UI
+
+```text
 http://127.0.0.1:8000/docs
 ```
 
-Interactive Swagger documentation:
+### ReDoc
 
-* `/docs` → Swagger UI
-* `/redoc` → ReDoc documentation
+```text
+http://127.0.0.1:8000/redoc
+```
 
 ---
 
-# Running Tests
+## Running Tests
 
-The project uses Pytest for automated testing.
-
-Run all tests:
+From the `backend` directory, run all tests:
 
 ```bash
-cd backend
 pytest
 ```
 
-Run a specific test file:
-
-```bash
-pytest tests/test_order.py
-```
-
-Verbose mode:
+Run tests in verbose mode:
 
 ```bash
 pytest -v
 ```
 
+Run a specific test file:
+
+```bash
+pytest tests/<test_file>.py
+```
+
+Run tests with coverage:
+
+```bash
+pytest --cov
+```
+
 ---
 
-# Authentication
+## Authentication
 
 The API uses JWT-based authentication.
 
 Protected routes require a valid Bearer Token.
 
-Example header:
+Example:
 
 ```http
 Authorization: Bearer <token>
 ```
 
-Authentication flow:
+### Authentication flow
 
-1. Create user account
-2. Login
-3. Receive JWT token
-4. Use token in protected routes
+1. Create a user account
+2. Log in
+3. Receive a JWT token
+4. Include the token in protected API requests
 
 ---
 
-# Available Endpoints
+## Available Endpoints
 
 ### Miscellaneous
 
-* GET `/` - Hello World
-* GET `/db-check`
+| Method | Endpoint    | Description               |
+| ------ | ----------- | ------------------------- |
+| `GET`  | `/`         | API welcome message       |
+| `GET`  | `/db-check` | Check database connection |
 
+---
 
 ### Authentication
 
-* POST `/login`
-* GET `/me` - Shows logged user's info
+| Method | Endpoint | Description                              |
+| ------ | -------- | ---------------------------------------- |
+| `POST` | `/login` | Authenticate a user                      |
+| `GET`  | `/me`    | Get the authenticated user's information |
 
 ---
 
 ### Users
 
-* POST `/users`
-* GET `/users/by-email/{email}`
-* GET `/users/{user_id}`
-* DELETE `/users/{user_id}`
+| Method   | Endpoint                  | Description          |
+| -------- | ------------------------- | -------------------- |
+| `POST`   | `/users`                  | Create a user        |
+| `GET`    | `/users/by-email/{email}` | Find a user by email |
+| `GET`    | `/users/{user_id}`        | Get a user           |
+| `DELETE` | `/users/{user_id}`        | Delete a user        |
 
 ---
 
 ### Attendees
 
-* GET `/attendees/organizers/{event_id}`
-* GET `/attendees/participants/{event_id}`
-* GET `/attendees/{attendee_id}`
-* DELETE `/attendees/{id}`
-* POST `/attendees/tickets`
+| Method   | Endpoint                             | Description               |
+| -------- | ------------------------------------ | ------------------------- |
+| `GET`    | `/attendees/organizers/{event_id}`   | List event organizers     |
+| `GET`    | `/attendees/participants/{event_id}` | List event participants   |
+| `GET`    | `/attendees/{attendee_id}`           | Get attendee information  |
+| `DELETE` | `/attendees/{id}`                    | Delete an attendee        |
+| `POST`   | `/attendees/tickets`                 | Create an attendee ticket |
 
 ---
 
 ### Events
 
-* GET `/events/`
-* POST `/events/`
-* POST `/events/{event_id}/addstaff/{user_id}`
-* GET `/events/{event_id}`
-* DELETE `/events/{event_id}`
-* POST `/events/{ticket_code}/check-in`
-* GET `/events/{event_id}/check-in-logs`
+| Method   | Endpoint                                | Description             |
+| -------- | --------------------------------------- | ----------------------- |
+| `GET`    | `/events/`                              | List events             |
+| `POST`   | `/events/`                              | Create an event         |
+| `GET`    | `/events/{event_id}`                    | Get event details       |
+| `DELETE` | `/events/{event_id}`                    | Delete an event         |
+| `POST`   | `/events/{event_id}/addstaff/{user_id}` | Add staff to an event   |
+| `POST`   | `/events/{ticket_code}/check-in`        | Check in a ticket       |
+| `GET`    | `/events/{event_id}/check-in-logs`      | Get event check-in logs |
 
-# Current Development Goals
+---
 
-Current priorities for development:
+## Roles and Permissions
 
-* Frontend integration with React
+The application supports event-specific user roles.
+
+Current roles include:
+
+* `attendee`
+* `user`
+* `staff`
+* `admin`
+
+Permissions are managed according to the user's role within a specific event.
+
+---
+
+## Current Development Goals
+
+* Cloud deployment
 * Better API structure and modularization
-* Deployment to cloud environment
+* Improved validation and exception handling
 * CI/CD pipeline implementation
 * Performance optimization
 * Additional automated test coverage
 
 ---
 
-# Contributing
+## Contributing
 
 This project is currently under active development.
 
-Contributions, suggestions, and improvements are welcome.
+Suggestions, improvements, and contributions are welcome.
 
 ---
 
-# Project Status
-
-Current status:
+## Project Status
 
 **Work in Progress**
 
-This project is being actively developed as a learning project focused on backend engineering, API design, authentication systems, database management, and full stack integration.
+Winterfell is an ongoing learning project focused on:
+
+* Backend engineering
+* REST API development
+* Authentication systems
+* Database management
+* Role-based access control
+* Event management systems
+* Full-stack application development
+* Automated testing
 
 ---
 
-# License
+## License
 
 This project currently does not have a defined license.
