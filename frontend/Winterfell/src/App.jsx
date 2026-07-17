@@ -795,7 +795,7 @@ function EventDetail({ api, event, currentUser, onBack, onDeleted }) {
     setCheckinLoading(true);
     setCheckinResult(null);
     try {
-      const data = await api(`/events/${checkinCode.trim()}/check-in`, { method: "POST" });
+      const data = await api(`/events/${event.id}/check-in/${checkinCode.trim()}`, { method: "POST" });
       setCheckinResult({ tone: "success", text: data.message });
       setCheckinCode("");
     
@@ -874,7 +874,7 @@ function EventDetail({ api, event, currentUser, onBack, onDeleted }) {
     setCheckinLoading(true);
     setCheckinResult(null);
     try {
-      const data = await api(`/events/${checkinCode.trim()}/check-in`, { method: "POST" });
+      const data = await api(`/events/${event.id}/check-in/${checkinCode.trim()}`, { method: "POST" });
       setCheckinResult({ tone: "success", text: data.message });
       setCheckinCode("");
       loadTickets();

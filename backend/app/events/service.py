@@ -16,7 +16,7 @@ from app.events.schema import EventCreate, EventList, EventResponse, RoleUpdate
 from app.core.security import require_role
 from app.users.model import User
 from app.attendees.model import CheckInLog, Ticket
-from app.attendees.schema import CheckInLogList, CheckInResponse, TicketList, TicketResponse, TicketRead
+from app.attendees.schema import CheckInLogList, CheckInLogResponse, CheckInResponse
 
 
 Attendee = aliased(User)
@@ -128,10 +128,10 @@ def delete_event(event_id: UUID, session: Session = Depends(get_session), curren
 	session.commit()
 	return {"message": "Event deleted successfully"}
 
-@router.post("/{ticket_code}/check-in", response_model=CheckInResponse, status_code=status.HTTP_201_CREATED)
-def check_in_attendee(ticket_code: str, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff))):
+@router.post("/{event_id}/check-in/{ticket_code}", response_model=CheckInResponse, status_code=status.HTTP_201_CREATED)
+def check_in_attendee(event_id: UUID, ticket_code: str, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff))):
     attendee = session.exec(
-        select(Ticket).where(Ticket.ticket_code == ticket_code)
+        select(Ticket).where(Ticket.ticket_code == ticket_code, Ticket.event_id == event_id)
     ).one_or_none()
     if attendee is None:
         raise HTTPException(
@@ -152,8 +152,14 @@ def check_in_attendee(ticket_code: str, session: Session = Depends(get_session),
     session.commit()
     session.refresh(attendee)
     return {
-        "message": "Attendee checked in successfully",
-        "check_in_log": log
+		"message": "Attendee checked in successfully",
+    	"check_in_log": {
+        	"id": log.id,
+        	"ticket_code": attendee.ticket_code,
+        	"attendee_name": attendee.attendee.name,
+        	"checked_by_name": current_user.name,
+        	"checked_at": log.checked_at,
+    	}
     }
 
 @router.get("/{event_id}/check-in-logs", response_model=CheckInLogList, status_code=status.HTTP_200_OK)
@@ -173,7 +179,7 @@ def get_check_in_logs(event_id: UUID, session: Session = Depends(get_session), c
 	).all()
 	return CheckInLogList(
     logs=[
-        CheckInResponse(
+        CheckInLogResponse(
             id=row.id,
             ticket_code=row.ticket_code,
             attendee_name=row.attendee_name,

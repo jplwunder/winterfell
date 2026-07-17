@@ -6,15 +6,19 @@ from sqlmodel import SQLModel
 from app.attendees.model import CheckInLog, Ticket
 
 
-class CheckInResponse(SQLModel):
+class CheckInLogResponse(SQLModel):
     id: UUID
     ticket_code: str
     attendee_name: str
     checked_by_name: str | None
     checked_at: datetime
 
+class CheckInResponse(SQLModel):
+    message: str
+    check_in_log: CheckInLogResponse
+
 class CheckInLogList(SQLModel):
-    logs: list[CheckInResponse]
+    logs: list[CheckInLogResponse]
 
 
 class TicketCreate(SQLModel):
