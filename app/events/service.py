@@ -72,7 +72,14 @@ def add_staff(user_id: UUID, event_id: UUID, session: Session = Depends(get_sess
 			status_code=status.HTTP_400_BAD_REQUEST,
 			detail="A staff member with this user ID already exists for this event"
 		)
-	session.delete(existing_ticket)
+	if existing_ticket and existing_ticket.role == EventRole.attendee:
+		existing_ticket.role = EventRole.staff
+		session.add(existing_ticket)
+		session.commit()
+		return {
+			"message": "User role updated to staff successfully",
+			"event": event
+		}
 	ticket = Ticket(event_id=event.id, attendee_id=staff.id, role=EventRole.staff)
 	session.add(ticket)
 	session.commit()
