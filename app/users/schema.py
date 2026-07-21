@@ -2,7 +2,7 @@ from typing import List
 
 from sqlmodel import SQLModel
 
-from app.users.model import User
+from app.users.model import User, UserPublic
 
 
 class UserCreate(SQLModel):
@@ -18,4 +18,4 @@ class UserList(SQLModel):
 
 class UserResponse(SQLModel):
     message: str
-    user: User
+    user: UserPublic

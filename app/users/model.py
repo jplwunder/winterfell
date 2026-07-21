@@ -21,3 +21,8 @@ class User(SQLModel, table=True):
             if ticket.event_id == event_id:
                 return ticket.role
         return None
+    
+class UserPublic(SQLModel):
+    id: UUID
+    name: str
+    email: str | None = None

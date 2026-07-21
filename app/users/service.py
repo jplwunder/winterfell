@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 
 from app.core.database import get_session
 from app.core.roles import EventRole
-from app.users.model import User
+from app.users.model import User, UserPublic
 from app.users.schema import UserCreate, UserList, UserResponse
 from app.core.security import is_valid_email
 
@@ -40,7 +40,7 @@ def create_user(user: UserCreate, session: Session = Depends(get_session)):
         "user": user
     }
 
-@router.get("/by-email/{email}", response_model=User, status_code=status.HTTP_200_OK)
+@router.get("/by-email/{email}", response_model=UserPublic, status_code=status.HTTP_200_OK)
 def read_user_by_email(email: str, session: Session = Depends(get_session)):
     user = session.exec(
         select(User).where(User.email == email)
@@ -53,7 +53,7 @@ def read_user_by_email(email: str, session: Session = Depends(get_session)):
     return {"email": user.email, "name": user.name, "id": user.id}
 
 
-@router.get("/{user_id}", response_model=User, status_code=status.HTTP_200_OK)
+@router.get("/{user_id}", response_model=UserPublic, status_code=status.HTTP_200_OK)
 def read_user(user_id: UUID, session: Session = Depends(get_session)):
     user = session.get(User, user_id)
     if user is None:
