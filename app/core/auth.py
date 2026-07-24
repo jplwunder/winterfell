@@ -9,8 +9,11 @@ from sqlmodel import Session, select
 
 from app.core.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
 from app.core.database import get_session
+from app.email.schema import Email
 from app.users.model import User
 from app.core.security import get_current_user, oauth2_scheme
+from app.email.service import mail, create_message
+
 
 router = APIRouter(tags=["auth"])
 
@@ -62,3 +65,19 @@ async def login(
 @router.get("/me")
 async def me(user=Depends(get_current_user)):
     return {"id": str(user.id), "name": user.name, "email": user.email}
+
+@router.post('/send-mail')
+async def send_mail(emails: Email):
+    emails = emails.addresses
+
+    html = "<h1>Olá,</h1><p>Este é um email de teste.</p>"
+
+    message = create_message(
+        reciepients=emails,
+        subject="Welcome",
+        body=html
+    )
+
+    await mail.send_message(message)
+
+    return {"message": "Email sent successfully"}

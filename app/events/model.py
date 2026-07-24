@@ -4,7 +4,6 @@ from uuid import UUID, uuid4
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.roles import EventRole
-from app.users.model import User
 
 if TYPE_CHECKING:
     from app.attendees.model import Ticket
