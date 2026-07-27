@@ -40,6 +40,13 @@ touch .env
 Set these variables in your .env file
 ```env
 SECRET_KEY=your_secret_key_here
+MAIL_USERNAME = ""
+MAIL_PASSWORD = ""
+MAIL_FROM = ""
+MAIL_PORT = "587"
+MAIL_SERVER = ""
+MAIL_FROM_NAME=""
+DOMAIN = ""
 ```
 
 You can generate a secure secret key using:
