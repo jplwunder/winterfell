@@ -5,16 +5,18 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
+from app.core.config import DOMAIN
 from app.core.database import get_session
 from app.core.roles import EventRole
+from app.email.service import create_message, mail
 from app.users.model import User, UserPublic
 from app.users.schema import UserCreate, UserList, UserResponse
-from app.core.security import is_valid_email
+from app.core.security import generate_email_token, is_valid_email
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def create_user(user: UserCreate, session: Session = Depends(get_session)):
+async def create_user(user: UserCreate, session: Session = Depends(get_session)):
     user = User(id=uuid4(), **user.model_dump())
     hashed_password = hashlib.sha256(user.password.encode()).hexdigest() if user.password else None
     user.password = hashed_password
@@ -34,8 +36,24 @@ def create_user(user: UserCreate, session: Session = Depends(get_session)):
     session.add(user)
     session.commit()
     session.refresh(user)
+    token = generate_email_token({"email": user.email})
+    link = f"http://{DOMAIN}/confirm-email?token={token}"
+
+    html_message = f"""
+    <h1>Confirm your email</h1>
+    <p>Click the link below to confirm your email address:</p>
+    <a href="{link}">Confirm Email</a>
+    <p>If you did not create an account, please ignore this email.</p>
+    """
+
+    message = create_message(
+        reciepients=[user.email],
+        subject="Confirm your email",
+        body=html_message
+    )
+    await mail.send_message(message)
     return {
-        "message": "User created successfully",
+        "message": "User created successfully. Check your email to confirm your account",
         "user": user
     }
 

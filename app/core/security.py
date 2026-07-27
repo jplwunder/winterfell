@@ -5,13 +5,17 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlmodel import Session, select
+from uvicorn import logging
 from app.core.config import ALGORITHM, SECRET_KEY
 from app.core.database import get_session
 from app.core.roles import EventRole
 from app.users.model import User
 from app.attendees.model import Ticket
+from itsdangerous import URLSafeTimedSerializer
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+serializer = URLSafeTimedSerializer(SECRET_KEY, salt="email-confirmation")
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
@@ -108,3 +112,14 @@ def is_valid_email(email: str) -> bool:
         email.find("@.") == -1 and
         email.find(".@") == -1
     )
+
+def generate_email_token(data: dict) -> str: 
+    email_token = serializer.dumps(data)
+    return email_token
+
+def decode_email_token(email_token: str) -> dict:
+    try:
+        email_data_token = serializer.loads(email_token)
+        return email_data_token
+    except Exception as e:
+        logging.error(str(e))
