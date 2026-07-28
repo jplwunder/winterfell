@@ -11,11 +11,12 @@ from app.core.database import get_session
 from app.core.roles import EventRole
 from app.users.model import User
 from app.attendees.model import Ticket
-from itsdangerous import URLSafeTimedSerializer
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+email_salt = "email-confirmation"
 
-serializer = URLSafeTimedSerializer(SECRET_KEY, salt="email-confirmation")
+serializer = URLSafeTimedSerializer(SECRET_KEY)
 
 
 def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
@@ -114,12 +115,8 @@ def is_valid_email(email: str) -> bool:
     )
 
 def generate_email_token(data: dict) -> str: 
-    email_token = serializer.dumps(data)
+    email_token = serializer.dumps(data, salt=email_salt)
     return email_token
 
-def decode_email_token(email_token: str) -> dict:
-    try:
-        email_data_token = serializer.loads(email_token)
-        return email_data_token
-    except Exception as e:
-        logging.error(str(e))
+def decode_email_token(email_token: str, max_age: int = 3600) -> dict:
+    return serializer.loads(email_token, salt=email_salt, max_age=max_age)

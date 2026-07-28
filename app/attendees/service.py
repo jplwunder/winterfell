@@ -137,6 +137,8 @@ def create_ticket(
         role=EventRole.attendee
     )
 
+    
+
     session.add(ticket)
     session.commit()
     session.refresh(ticket)

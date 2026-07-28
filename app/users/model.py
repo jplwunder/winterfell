@@ -15,6 +15,7 @@ class User(SQLModel, table=True):
     email: str | None = Field(default=None, index=True)
     password: str | None = Field(default=None, index=True, nullable=True)
     tickets: list["Ticket"] = Relationship(back_populates="attendee")
+    is_verified: bool = Field(default=False, index=True)
 
     def get_role(self, event_id: UUID) -> EventRole | None:
         for ticket in self.tickets:

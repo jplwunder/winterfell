@@ -37,7 +37,7 @@ async def create_user(user: UserCreate, session: Session = Depends(get_session))
     session.commit()
     session.refresh(user)
     token = generate_email_token({"email": user.email})
-    link = f"http://{DOMAIN}/confirm-email?token={token}"
+    link = f"http://{DOMAIN}/auth/verify?token={token}"
 
     html_message = f"""
     <h1>Confirm your email</h1>
