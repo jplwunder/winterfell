@@ -10,6 +10,7 @@ from app.core.database import get_session
 from app.core.roles import EventRole
 from app.attendees.model import CheckInLog, Ticket
 from app.attendees.schema import CheckInResponse, TicketList, TicketResponse, TicketRead
+from app.email.service import create_message, generate_ticket_email, mail
 from app.events.model import Event, ParticipantList, ParticipantOut
 from app.users.model import User
 from app.users.schema import UserCreate, UserList, UserResponse
@@ -105,7 +106,7 @@ def delete_attendee(id: UUID, session: Session = Depends(get_session), current_u
 
 
 @router.post("/tickets", response_model=TicketResponse)
-def create_ticket(
+async def create_ticket(
     event_id: UUID,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
@@ -137,11 +138,18 @@ def create_ticket(
         role=EventRole.attendee
     )
 
-    
-
     session.add(ticket)
     session.commit()
     session.refresh(ticket)
+
+    html_message = generate_ticket_email(attendee.name, event.name, event.date, event.location, ticket.ticket_code, ticket.qr_code_url)
+
+    message = create_message(
+        reciepients=[attendee.email],
+        subject=f"Your Ticket for {event.name}",
+        body=html_message
+    )
+    await mail.send_message(message)
 
     return TicketResponse(
         message="Ticket created successfully",

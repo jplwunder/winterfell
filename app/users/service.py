@@ -8,7 +8,7 @@ from sqlmodel import Session, select
 from app.core.config import DOMAIN
 from app.core.database import get_session
 from app.core.roles import EventRole
-from app.email.service import create_message, mail
+from app.email.service import create_message, generate_confirmation_email, mail
 from app.users.model import User, UserPublic
 from app.users.schema import UserCreate, UserList, UserResponse
 from app.core.security import generate_email_token, is_valid_email
@@ -39,12 +39,7 @@ async def create_user(user: UserCreate, session: Session = Depends(get_session))
     token = generate_email_token({"email": user.email})
     link = f"http://{DOMAIN}/auth/verify?token={token}"
 
-    html_message = f"""
-    <h1>Confirm your email</h1>
-    <p>Click the link below to confirm your email address:</p>
-    <a href="{link}">Confirm Email</a>
-    <p>If you did not create an account, please ignore this email.</p>
-    """
+    html_message = generate_confirmation_email(link)
 
     message = create_message(
         reciepients=[user.email],

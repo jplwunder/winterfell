@@ -20,6 +20,7 @@ class Ticket(SQLModel, table=True):
     event: Event = Relationship(back_populates="tickets")
     check_in_logs: list["CheckInLog"] = Relationship(back_populates="ticket", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     role: EventRole = Field(default=EventRole.attendee, index=True)  # Default role is "attendee"
+    qr_code_url: str | None = Field(default=None, index=True)  # URL for the QR code image
 
 class CheckInLog(SQLModel, table=True):
     id: UUID | None = Field(default_factory=uuid4, primary_key=True)
