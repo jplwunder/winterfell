@@ -13,7 +13,7 @@ from app.core.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
 from app.core.database import get_session
 from app.email.schema import Email
 from app.users.model import User
-from app.core.security import decode_email_token, get_current_user, oauth2_scheme
+from app.core.security import decode_email_token, get_current_user, oauth2_scheme, require_verified_user
 from app.email.service import mail, create_message
 
 
@@ -25,7 +25,7 @@ async def login(
     session: Session = Depends(get_session)
 ):
     statement = select(User).where(
-        User.email == form_data.username
+        User.email == form_data.username and User.is_verified == True
     )
 
     user = session.exec(statement).first()
@@ -65,7 +65,7 @@ async def login(
 
 
 @router.get("/me")
-async def me(user=Depends(get_current_user)):
+async def me(user=Depends(get_current_user), require_verified: User = Depends(require_verified_user)):
     return {"id": str(user.id), "name": user.name, "email": user.email}
 
 @router.post('/send-mail')

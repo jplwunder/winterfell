@@ -14,7 +14,7 @@ from app.email.service import create_message, generate_ticket_email, mail
 from app.events.model import Event, ParticipantList, ParticipantOut
 from app.users.model import User
 from app.users.schema import UserCreate, UserList, UserResponse
-from app.core.security import generate_ticket_code, get_current_user, is_valid_email, require_role
+from app.core.security import generate_ticket_code, get_current_user, is_valid_email, require_role, require_verified_user
 
 router = APIRouter(prefix="/attendees", tags=["attendees"])
 
@@ -23,6 +23,7 @@ def list_organizers(
     event_id: UUID,
     session: Session = Depends(get_session),
     current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)),
+    require_verified: User = Depends(require_verified_user)
 ):
     statement = (
         select(User, Ticket.role)
@@ -41,7 +42,8 @@ def list_organizers(
 def list_participants(
     event_id:UUID,
     current_user: User = Depends(get_current_user),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    require_verified: User = Depends(require_verified_user)
 ):
     tickets = session.exec(
         select(Ticket)
@@ -59,9 +61,8 @@ def get_participant_by_ticket_code(
     event_id: UUID,
     ticket_code: str,
     session: Session = Depends(get_session),
-    current_user: User = Depends(
-        require_role(EventRole.admin, EventRole.staff)
-    ),
+    current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)),
+    require_verified: User = Depends(require_verified_user)
 ):
     ticket = session.exec(
         select(Ticket).where(
@@ -83,7 +84,7 @@ def get_participant_by_ticket_code(
 
 
 @router.get("/{attendee_id}", response_model=User, status_code=status.HTTP_200_OK)
-def read_attendee(attendee_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff))):
+def read_attendee(attendee_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)), require_verified: User = Depends(require_verified_user)):
     attendee = session.get(User, attendee_id)
     if attendee is None:
         raise HTTPException(
@@ -93,7 +94,7 @@ def read_attendee(attendee_id: UUID, session: Session = Depends(get_session), cu
     return attendee
 
 @router.delete("/{id}", response_model=CheckInResponse, status_code=status.HTTP_200_OK)
-def delete_attendee(id: UUID, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff))):
+def delete_attendee(id: UUID, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)), require_verified: User = Depends(require_verified_user)):
     attendee = session.exec(select(User).where(User.id == id and User.id == current_user.id)).one_or_none()
     if attendee is None:
         raise HTTPException(
@@ -109,7 +110,8 @@ def delete_attendee(id: UUID, session: Session = Depends(get_session), current_u
 async def create_ticket(
     event_id: UUID,
     session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    require_verified: User = Depends(require_verified_user)
 ):
     event = session.get(Event, event_id)
     if event is None:

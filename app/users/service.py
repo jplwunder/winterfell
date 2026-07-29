@@ -11,7 +11,7 @@ from app.core.roles import EventRole
 from app.email.service import create_message, generate_confirmation_email, mail
 from app.users.model import User, UserPublic
 from app.users.schema import UserCreate, UserList, UserResponse
-from app.core.security import generate_email_token, is_valid_email
+from app.core.security import generate_email_token, get_current_user, is_valid_email, require_verified_user
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -53,7 +53,7 @@ async def create_user(user: UserCreate, session: Session = Depends(get_session))
     }
 
 @router.get("/by-email/{email}", response_model=UserPublic, status_code=status.HTTP_200_OK)
-def read_user_by_email(email: str, session: Session = Depends(get_session)):
+def read_user_by_email(email: str, session: Session = Depends(get_session), require_verified: User = Depends(require_verified_user)):
     user = session.exec(
         select(User).where(User.email == email)
     ).one_or_none()
@@ -66,7 +66,7 @@ def read_user_by_email(email: str, session: Session = Depends(get_session)):
 
 
 @router.get("/{user_id}", response_model=UserPublic, status_code=status.HTTP_200_OK)
-def read_user(user_id: UUID, session: Session = Depends(get_session)):
+def read_user(user_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(get_current_user), require_verified: User = Depends(require_verified_user)):
     user = session.get(User, user_id)
     if user is None:
         raise HTTPException(
@@ -77,7 +77,7 @@ def read_user(user_id: UUID, session: Session = Depends(get_session)):
 
 
 @router.delete("/{user_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
-def delete_user(user_id: UUID, session: Session = Depends(get_session)):
+def delete_user(user_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(get_current_user), require_verified: User = Depends(require_verified_user)):
     user = session.get(User, user_id)
     if user is None:
         raise HTTPException(

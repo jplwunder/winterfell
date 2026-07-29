@@ -76,6 +76,14 @@ def get_event_id_from_ticket_code(ticket_code: str, session: Session = Depends(g
 
     return ticket.event_id
 
+def require_verified_user(current_user: User = Depends(get_current_user)) -> User:
+    if not current_user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is not verified, Check your email for verification link"
+        )
+    return current_user
+
 def require_role(*allowed_roles: EventRole):
     def role_checker(current_user: User = Depends(get_current_user), event_id: UUID = Depends(get_event_id_from_ticket_code)) -> User:
         if current_user.get_role(event_id) not in allowed_roles:
