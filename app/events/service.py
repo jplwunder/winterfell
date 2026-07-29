@@ -17,6 +17,7 @@ from app.core.security import require_role
 from app.users.model import User
 from app.attendees.model import CheckInLog, Ticket
 from app.attendees.schema import CheckInLogList, CheckInLogResponse, CheckInResponse
+from app.email.service import create_message, generate_staff_added_email, mail
 
 
 Attendee = aliased(User)
@@ -48,7 +49,7 @@ def create_event(event: EventCreate, session: Session = Depends(get_session), cu
 
 
 @router.post("/{event_id}/addstaff/{user_id}", response_model=Event, status_code=status.HTTP_200_OK)
-def add_staff(user_id: UUID, event_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin)), require_verified: User = Depends(require_verified_user)):
+async def add_staff(user_id: UUID, event_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin)), require_verified: User = Depends(require_verified_user)):
 	event = session.get(Event, event_id)
 	if event is None:
 		raise HTTPException(
@@ -83,6 +84,17 @@ def add_staff(user_id: UUID, event_id: UUID, session: Session = Depends(get_sess
 	ticket = Ticket(event_id=event.id, attendee_id=staff.id, role=EventRole.staff)
 	session.add(ticket)
 	session.commit()
+
+	html_message = generate_staff_added_email(staff.name, event.name, event.date, event.location)
+
+	message = create_message(
+			reciepients=[staff.email],
+			subject=f"Your Role in {event.name}",
+			body=html_message
+		)
+	
+	await mail.send_message(message)
+
 	return {
 		"message": "Staff member added to event successfully",
 		"event": event
@@ -90,7 +102,7 @@ def add_staff(user_id: UUID, event_id: UUID, session: Session = Depends(get_sess
 
 
 @router.get("/", response_model=EventList, status_code=status.HTTP_200_OK)
-def list_events(session: Session = Depends(get_session), current_user: User = Depends(get_current_user), require_verified: User = Depends(require_verified_user)):
+def list_events(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
 	statement = (
 		select(Event, Ticket.role)
 		.join(Ticket, Ticket.event_id == Event.id)
@@ -112,7 +124,7 @@ def list_events(session: Session = Depends(get_session), current_user: User = De
 
 
 @router.get("/{event_id}", response_model=Event, status_code=status.HTTP_200_OK)
-def read_event(event_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(get_current_user), require_verified: User = Depends(require_verified_user)):
+def read_event(event_id: UUID, session: Session = Depends(get_session)):
 	event = session.get(Event, event_id)
 	if event is None:
 		raise HTTPException(

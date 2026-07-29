@@ -90,7 +90,7 @@ def generate_confirmation_email(link: str) -> str:
         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 460px; margin-top: 20px;">
           <tr>
             <td align="center" style="color: #94a3b8; font-size: 12px;">
-              <p style="margin: 0;">Eventos Hub &bull; Todos os direitos reservados</p>
+              <p style="margin: 0;">Dois ou Mais Eventos &bull; Todos os direitos reservados</p>
             </td>
           </tr>
         </table>
@@ -196,7 +196,114 @@ def generate_ticket_email(
         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 480px; margin-top: 20px;">
           <tr>
             <td align="center" style="color: #94a3b8; font-size: 12px;">
-              <p style="margin: 0;">Eventos Hub &bull; Todos os direitos reservados</p>
+              <p style="margin: 0;">Dois ou Mais Eventos &bull; Todos os direitos reservados</p>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
+def generate_staff_added_email(
+    user_name: str,
+    event_name: str, 
+    event_date: str, 
+    event_location: str, 
+    staff_role: str = "Apoio / Credenciamento"
+) -> str:
+    return f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Acesso Staff - {event_name}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc; padding: 40px 10px;">
+    <tr>
+      <td align="center">
+        <!-- Container Principal -->
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 480px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+          
+          <!-- Banner Superior / Distintivo de Staff -->
+          <tr>
+            <td align="center" style="background-color: #0f172a; padding: 28px 24px; text-align: center;">
+              <span style="display: inline-block; background-color: rgba(99, 102, 241, 0.25); color: #818cf8; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 4px 12px; border-radius: 9999px; margin-bottom: 8px;">
+                Equipe de Organização &bull; Staff
+              </span>
+              <h1 style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0; line-height: 1.3;">
+                {event_name}
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Corpo do E-mail -->
+          <tr>
+            <td style="padding: 28px 28px 12px 28px;">
+              <p style="color: #334155; font-size: 15px; margin: 0 0 20px 0;">
+                Olá, <strong>{user_name}</strong>! Você foi adicionado(a) como membro da equipe de <strong>Staff</strong> para este evento.
+              </p>
+
+              <!-- Bloco da Função/Cargo -->
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 14px 16px; margin-bottom: 20px;">
+                <tr>
+                  <td>
+                    <span style="color: #166534; font-size: 11px; font-weight: 700; text-transform: uppercase; display: block; margin-bottom: 2px;">Sua Função Atribuída</span>
+                    <span style="color: #15803d; font-size: 15px; font-weight: 700;">🛡️ {staff_role}</span>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Detalhes do Evento -->
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+                <tr>
+                  <td style="padding-bottom: 10px;">
+                    <span style="color: #64748b; font-size: 11px; font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 2px;">Data & Horário</span>
+                    <span style="color: #0f172a; font-size: 14px; font-weight: 600;">📅 {event_date}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <span style="color: #64748b; font-size: 11px; font-weight: 600; text-transform: uppercase; display: block; margin-bottom: 2px;">Local</span>
+                    <span style="color: #0f172a; font-size: 14px; font-weight: 600;">📍 {event_location}</span>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Instruções / Permissões -->
+              <p style="color: #64748b; font-size: 13px; line-height: 1.5; margin: 0 0 20px 0;">
+                A partir de agora, você possui privilégios de acesso ao painel do evento para auxiliar na validação de ingressos e gestão de participantes.
+              </p>
+
+            </td>
+          </tr>
+
+          <!-- Divisor -->
+          <tr>
+            <td style="padding: 0 28px;">
+              <div style="border-top: 1px solid #f1f5f9;"></div>
+            </td>
+          </tr>
+
+          <!-- Rodapé do Card -->
+          <tr>
+            <td align="center" style="padding: 20px 28px 28px 28px;">
+              <p style="color: #94a3b8; font-size: 12px; line-height: 1.5; margin: 0; text-align: center;">
+                Dúvidas sobre sua atuação? Procure o organizador principal do evento.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+
+        <!-- Rodapé Externo -->
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 480px; margin-top: 20px;">
+          <tr>
+            <td align="center" style="color: #94a3b8; font-size: 12px;">
+              <p style="margin: 0;">Dois ou Mais Eventos &bull; Painel Organizador</p>
             </td>
           </tr>
         </table>
