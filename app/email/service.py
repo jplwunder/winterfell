@@ -1,8 +1,21 @@
+from datetime import datetime, timedelta, timezone
+import random
+from typing import Dict
+
+from sqlmodel import Session, select
+from fastapi import APIRouter, HTTPException, status, Depends
+from app.core.database import get_session
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 import os
 from pathlib import Path
 
+from sqlmodel import Session
+
+from app.email.model import UserVerificationCode
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+router = APIRouter(prefix="/email", tags=["email"])
 
 config = ConnectionConfig(
     MAIL_USERNAME = os.getenv("MAIL_USERNAME"),
@@ -30,13 +43,27 @@ def create_message(reciepients: list[str], subject: str, body: str):
     )
     return message
 
-def generate_confirmation_email(link: str) -> str:
+def create_user_verification_code(email:str ,session: Session) -> str:
+    code = random.randint(100000, 999999)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    session.add(UserVerificationCode(email=email, code=code, expires_at=expires_at))
+    session.commit()
+    return str(code)
+
+@router.delete("/delete-verification-code",response_model= Dict[str, str], status_code=status.HTTP_200_OK)
+def delete_user_verification_code(session: Session = Depends(get_session)):
+    statement = select(UserVerificationCode).where(UserVerificationCode.expires_at < datetime.now(timezone.utc))
+    session.delete(statement)
+    session.commit()
+    return {"message": "Expired verification codes deleted successfully."}
+
+def generate_verification_code_email(code: str) -> str:
     return f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Confirme seu e-mail</title>
+  <title>Código de Verificação</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
   <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc; padding: 40px 10px;">
@@ -45,11 +72,11 @@ def generate_confirmation_email(link: str) -> str:
         <!-- Container Principal -->
         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 460px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
           
-          <!-- Banner / Topo -->
+          <!-- Banner / Ícone -->
           <tr>
             <td align="center" style="padding: 36px 32px 12px 32px;">
               <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; background-color: #eff6ff; border-radius: 12px; font-size: 22px;">
-                ✉️
+                🔑
               </div>
             </td>
           </tr>
@@ -58,29 +85,33 @@ def generate_confirmation_email(link: str) -> str:
           <tr>
             <td align="center" style="padding: 0 32px 36px 32px;">
               <h1 style="color: #0f172a; font-size: 20px; font-weight: 700; margin: 0 0 12px 0; text-align: center;">
-                Confirme seu e-mail
+                Código de Verificação
               </h1>
               
-              <p style="color: #64748b; font-size: 14px; line-height: 1.6; margin: 0 0 28px 0; text-align: center;">
-                Falta pouco para concluir sua inscrição! Clique no botão abaixo para validar seu endereço de e-mail e ativar seu acesso.
+              <p style="color: #64748b; font-size: 14px; line-height: 1.6; margin: 0 0 24px 0; text-align: center;">
+                Utilize o código abaixo para confirmar seu e-mail e concluir sua inscrição:
               </p>
 
-              <!-- Botão (compatível com vários clientes de e-mail) -->
-              <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+              <!-- Bloco do Código -->
+              <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto; background-color: #f1f5f9; border: 1px dashed #cbd5e1; border-radius: 12px;">
                 <tr>
-                  <td align="center" bgcolor="#2563eb" style="border-radius: 8px;">
-                    <a href="{link}" target="_blank" style="display: inline-block; padding: 12px 28px; font-size: 14px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px; background-color: #2563eb;">
-                      Confirmar E-mail
-                    </a>
+                  <td align="center" style="padding: 16px 32px;">
+                    <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: 800; letter-spacing: 6px; color: #1e293b;">
+                      {code}
+                    </span>
                   </td>
                 </tr>
               </table>
+
+              <p style="color: #94a3b8; font-size: 12px; margin-top: 16px; margin-bottom: 0; text-align: center;">
+                Este código expira em 15 minutos.
+              </p>
 
               <!-- Divisor -->
               <div style="border-top: 1px solid #f1f5f9; margin: 28px 0 20px 0;"></div>
 
               <p style="color: #94a3b8; font-size: 12px; line-height: 1.5; margin: 0; text-align: center;">
-                Se você não criou uma conta ou não realizou a inscrição neste evento, basta ignorar este e-mail.
+                Se você não solicitou este código ou não tentou se cadastrar, basta ignorar este e-mail.
               </p>
             </td>
           </tr>
@@ -90,7 +121,7 @@ def generate_confirmation_email(link: str) -> str:
         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 460px; margin-top: 20px;">
           <tr>
             <td align="center" style="color: #94a3b8; font-size: 12px;">
-              <p style="margin: 0;">Dois ou Mais Eventos &bull; Todos os direitos reservados</p>
+              <p style="margin: 0;">Eventos Hub &bull; Todos os direitos reservados</p>
             </td>
           </tr>
         </table>
