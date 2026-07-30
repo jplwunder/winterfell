@@ -29,7 +29,7 @@ router = APIRouter(prefix="/events", tags=["events"])
 @router.post("/", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
 def create_event(event: EventCreate, session: Session = Depends(get_session), current_user: User = Depends(get_current_user), require_verified: User = Depends(require_verified_user)):
 	event = Event(id=uuid4(), **event.model_dump())
-	existing_event = session.exec(select(Event).where(Event.name == event.name)).first()
+	existing_event = session.exec(select(Event).where(Event.id == event.id, Event.deleted == False)).first()
 	if existing_event:
 		raise HTTPException(
 			status_code=status.HTTP_400_BAD_REQUEST,
@@ -106,7 +106,7 @@ def list_events(session: Session = Depends(get_session), current_user: User = De
 	statement = (
 		select(Event, Ticket.role)
 		.join(Ticket, Ticket.event_id == Event.id)
-		.where(Ticket.attendee_id == current_user.id)
+		.where(Ticket.attendee_id == current_user.id, Event.deleted == False)
 	)
 	results = session.exec(statement).all()
 	events = [
@@ -134,7 +134,7 @@ def read_event(event_id: UUID, session: Session = Depends(get_session)):
 	return event
 
 
-@router.delete("/{event_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
+@router.post("/{event_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
 def delete_event(event_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(get_current_user), require_verified: User = Depends(require_verified_user), admin_check: User = Depends(require_event_role(EventRole.admin))):
 	statement = select(Event).join(Ticket, Ticket.event_id == Event.id).where(Event.id == event_id, Ticket.attendee_id == current_user.id)
 	event = session.exec(statement).one_or_none()
@@ -143,7 +143,8 @@ def delete_event(event_id: UUID, session: Session = Depends(get_session), curren
 			status_code=404,
 			detail="Event not found"
 		)
-	session.delete(event)
+	event.deleted = True
+	session.add(event)
 	session.commit()
 	return {"message": "Event deleted successfully"}
 

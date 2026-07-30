@@ -24,10 +24,10 @@ router = APIRouter(tags=["auth"], prefix="/auth")
 @router.post("/login")
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    session: Session = Depends(get_session)
-):
+    session: Session = Depends(get_session),
+    ):
     statement = select(User).where(
-        User.email == form_data.username and User.is_verified == True
+        User.email == form_data.username
     )
 
     user = session.exec(statement).first()
@@ -37,6 +37,7 @@ async def login(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Usuário não encontrado"
         )
+
 
     hashed_password = hashlib.sha256(
         form_data.password.encode()
@@ -67,49 +68,14 @@ async def login(
 
 
 @router.get("/me")
-async def me(user=Depends(get_current_user), require_verified: User = Depends(require_verified_user)):
+async def me(user=Depends(get_current_user), session: Session = Depends(get_session)):
+    if user.is_verified is False:
+        await send_verification_code(user.email, session)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Conta de usuário não verificada. Verifique seu e-mail para o link de verificação"
+        )
     return {"id": str(user.id), "name": user.name, "email": user.email}
-
-@router.get("/verify")
-@router.get("/verify/")
-async def verify_email(token: str, session: Session = Depends(get_session)):
-    try:
-        payload = decode_email_token(token)
-        email = payload.get("email")
-        if not email:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid token"
-            )
-
-        user = session.exec(select(User).where(User.email == email)).first()
-
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
-            )
-
-        if user.is_verified:
-            return {"message": "Email already verified"}
-
-        user.is_verified = True
-        session.add(user)
-        session.commit()
-        session.refresh(user)
-
-        return {"message": "Email verified successfully"}
-
-    except SignatureExpired:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Token has expired"
-        )
-    except BadSignature:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid token"
-        )
 
 @router.post("/send-verification-code/{email}", status_code=status.HTTP_200_OK)
 async def send_verification_code(email: str, session: Session = Depends(get_session)):
@@ -145,7 +111,7 @@ async def verify_code(payload: VerifyCodeSchema, session: Session = Depends(get_
             detail="Invalid code"
         )
     expires_at = verification_code.expires_at.replace(tzinfo=timezone.utc)
-    if expires_at < datetime.now(timezone.utc):
+    if expires_at > datetime.now(timezone.utc):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Code has expired"

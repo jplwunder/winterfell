@@ -16,6 +16,7 @@ class Event(SQLModel, table=True):
     location: str = Field(index=True)
     description: str | None = Field(default=None, index=True)
     tickets: list["Ticket"] = Relationship(back_populates="event", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    deleted: bool = Field(default=False, index=True)
 
 class ParticipantOut(SQLModel):
     id: UUID
