@@ -77,13 +77,11 @@ async def add_staff(user_id: UUID, event_id: UUID, session: Session = Depends(ge
 		existing_ticket.role = EventRole.staff
 		session.add(existing_ticket)
 		session.commit()
-		return {
-			"message": "User role updated to staff successfully",
-			"event": event
-		}
-	ticket = Ticket(event_id=event.id, attendee_id=staff.id, role=EventRole.staff)
-	session.add(ticket)
-	session.commit()
+
+	else:
+		ticket = Ticket(event_id=event.id, attendee_id=staff.id, role=EventRole.staff)
+		session.add(ticket)
+		session.commit()
 
 	html_message = generate_staff_added_email(staff.name, event.name, event.date, event.location)
 

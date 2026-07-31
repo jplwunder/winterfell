@@ -45,17 +45,10 @@ def create_message(reciepients: list[str], subject: str, body: str):
 
 def create_user_verification_code(email:str ,session: Session) -> str:
     code = random.randint(100000, 999999)
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=10)
     session.add(UserVerificationCode(email=email, code=code, expires_at=expires_at))
     session.commit()
     return str(code)
-
-@router.delete("/delete-verification-code",response_model= Dict[str, str], status_code=status.HTTP_200_OK)
-def delete_user_verification_code(session: Session = Depends(get_session)):
-    statement = select(UserVerificationCode).where(UserVerificationCode.expires_at < datetime.now(timezone.utc))
-    session.delete(statement)
-    session.commit()
-    return {"message": "Expired verification codes deleted successfully."}
 
 def generate_verification_code_email(code: str) -> str:
     return f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
