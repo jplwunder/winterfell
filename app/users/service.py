@@ -42,7 +42,7 @@ async def create_user(user: UserCreate, session: Session = Depends(get_session))
 
     message = create_message(
         reciepients=[user.email],
-        subject="Confirm your email",
+        subject="Código de verificação",
         body=html_message
     )
     await mail.send_message(message)
