@@ -27,7 +27,7 @@ class TicketCreate(SQLModel):
 
 class TicketResponse(SQLModel):
     message: str
-    ticket: "Ticket"
+    ticket: Ticket
 
 class TicketList(SQLModel):
     tickets: list[Ticket]

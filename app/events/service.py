@@ -16,7 +16,7 @@ from app.events.schema import EventCreate, EventList, EventResponse, RoleUpdate
 from app.core.security import require_role
 from app.users.model import User
 from app.attendees.model import CheckInLog, Ticket
-from app.attendees.schema import CheckInLogList, CheckInLogResponse, CheckInResponse
+from app.attendees.schema import CheckInLogList, CheckInLogResponse, CheckInResponse, TicketResponse
 from app.email.service import create_message, generate_staff_added_email, mail
 
 
@@ -34,6 +34,11 @@ def create_event(event: EventCreate, session: Session = Depends(get_session), cu
 		raise HTTPException(
 			status_code=status.HTTP_400_BAD_REQUEST,
 			detail="Event already exists"
+		)
+	if event.date.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="Event date cannot be in the past"
 		)
 	session.add(event)
 	session.commit()
@@ -149,7 +154,7 @@ def delete_event(event_id: UUID, session: Session = Depends(get_session), curren
 @router.post("/{event_id}/check-in/{ticket_code}", response_model=CheckInResponse, status_code=status.HTTP_201_CREATED)
 def check_in_attendee(event_id: UUID, ticket_code: str, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)), require_verified: User = Depends(require_verified_user)):
     attendee = session.exec(
-        select(Ticket).where(Ticket.ticket_code == ticket_code, Ticket.event_id == event_id)
+        select(Ticket).where(Ticket.ticket_code == ticket_code, Ticket.event_id == event_id, Ticket.cancelled == False)
     ).one_or_none()
     if attendee is None:
         raise HTTPException(
@@ -179,6 +184,21 @@ def check_in_attendee(event_id: UUID, ticket_code: str, session: Session = Depen
         	"checked_at": log.checked_at,
     	}
     }
+
+@router.post("/{event_id}/cancel/{ticket_code}", response_model=TicketResponse, status_code=status.HTTP_200_OK)
+def cancel_ticket(event_id: UUID, ticket_code: str, session: Session = Depends(get_session), require_verified: User = Depends(require_verified_user), current_user: User = Depends(get_current_user)):
+    ticket = session.exec(
+        select(Ticket).where(Ticket.ticket_code == ticket_code, Ticket.event_id == event_id, Ticket.attendee_id == current_user.id, Ticket.cancelled == False)
+    ).one_or_none()
+    if ticket is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ticket not found"
+        )
+    ticket.cancelled = True
+    session.add(ticket)
+    session.commit()
+    return {"message": "Ticket cancelled successfully"}
 
 @router.get("/{event_id}/check-in-logs", response_model=CheckInLogList, status_code=status.HTTP_200_OK)
 def get_check_in_logs(event_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)), require_verified: User = Depends(require_verified_user)):

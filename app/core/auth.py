@@ -69,7 +69,7 @@ async def login(
 
 @router.get("/me")
 async def me(user=Depends(get_current_user), session: Session = Depends(get_session)):
-    if user.is_verified is False:
+    if not session or user.is_verified is False:
         await send_verification_code(user.email, session)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
