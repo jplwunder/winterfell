@@ -1,10 +1,11 @@
-from main import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY, app
-from fastapi.testclient import TestClient
 import hashlib
 import random
 import string
 from datetime import datetime, timedelta
+
 import jwt
+from fastapi.testclient import TestClient
+from main import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY, app
 
 from tests.helper import create_user_test, random_string
 

@@ -1,10 +1,12 @@
-from sqlmodel import SQLModel, Session, create_engine
-from fastapi.testclient import TestClient
-import pytest
 import os
 from pathlib import Path
 
-from main import app, get_session
+import pytest
+from fastapi.testclient import TestClient
+from sqlmodel import Session, SQLModel, create_engine
+
+from app.core.database import get_session
+from app.main import app
 
 
 @pytest.fixture(scope="function")
