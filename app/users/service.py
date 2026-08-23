@@ -22,24 +22,31 @@ from app.users.schema import UserCreate, UserResponse
 
 router = APIRouter(prefix="/users", tags=["users"])
 
-@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(user_payload: UserCreate, session: Annotated[Session, Depends(get_session)]):
-    user = User(id=uuid4(), **user_payload.model_dump(exclude={'password'}))
 
-    hashed_password = hashlib.sha256(user_payload.password.encode()).hexdigest() if user_payload.password else None
+@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def create_user(
+    user_payload: UserCreate, session: Annotated[Session, Depends(get_session)]
+):
+    user = User(id=uuid4(), **user_payload.model_dump(exclude={"password"}))
+
+    hashed_password = (
+        hashlib.sha256(user_payload.password.encode()).hexdigest()
+        if user_payload.password
+        else None
+    )
     user.password = hashed_password
 
     if is_valid_email(user.email):
-        existing_user = session.exec(select(User).where(User.email == user.email)).first()
+        existing_user = session.exec(
+            select(User).where(User.email == user.email)
+        ).first()
         if existing_user:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email já registrado."
+                status_code=status.HTTP_400_BAD_REQUEST, detail="Email já registrado."
             )
     else:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Formato de e-mail inválido"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Formato de e-mail inválido"
         )
     session.add(user)
 
@@ -48,7 +55,7 @@ async def create_user(user_payload: UserCreate, session: Annotated[Session, Depe
     message = create_message(
         reciepients=[user.email],
         subject="[Dois ou Mais] Verifique o seu endereço de e-mail",
-        body=html_message
+        body=html_message,
     )
     await mail.send_message(message)
 
@@ -56,29 +63,38 @@ async def create_user(user_payload: UserCreate, session: Annotated[Session, Depe
 
     return {
         "message": "User created successfully. Waiting for e-mail confirmation.",
-        "user": user
+        "user": user,
     }
 
-@router.get("/by-email/{email}", response_model=UserPublic, status_code=status.HTTP_200_OK, dependencies=Depends(get_verified_user))
+
+@router.get(
+    "/by-email/{email}",
+    response_model=UserPublic,
+    status_code=status.HTTP_200_OK,
+    dependencies=Depends(get_verified_user),
+)
 def read_user_by_email(email: str, session: Annotated[Session, Depends(get_session)]):
-    user = session.exec(
-        select(User).where(User.email == email)
-    ).one_or_none()
+    user = session.exec(select(User).where(User.email == email)).one_or_none()
     if user is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
     return {"email": user.email, "name": user.name, "id": user.id}
 
 
-@router.delete("/{user_id}", response_model=dict[str, str], status_code=status.HTTP_200_OK)
-def delete_user(user_id: UUID, session: Annotated[Session, Depends(get_session)], current_user: Annotated[User, Depends(get_current_user)], require_verified: Annotated[User, Depends(get_verified_user)]):
+@router.delete(
+    "/{user_id}", response_model=dict[str, str], status_code=status.HTTP_200_OK
+)
+def delete_user(
+    user_id: UUID,
+    session: Annotated[Session, Depends(get_session)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    require_verified: Annotated[User, Depends(get_verified_user)],
+):
     user = session.get(User, user_id)
     if user is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
     session.delete(user)
     session.commit()

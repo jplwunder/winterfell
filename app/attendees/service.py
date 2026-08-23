@@ -14,16 +14,27 @@ from app.email.service import create_message, generate_ticket_email, mail
 from app.events.model import Event, ParticipantList, ParticipantOut
 from app.users.model import User
 from app.users.schema import UserCreate, UserList, UserResponse
-from app.core.security import generate_ticket_code, get_current_user, is_valid_email, require_role, get_verified_user
+from app.core.security import (
+    generate_ticket_code,
+    get_current_user,
+    is_valid_email,
+    require_role,
+    get_verified_user,
+)
 
 router = APIRouter(prefix="/attendees", tags=["attendees"])
 
-@router.get("/organizers/{event_id}", response_model=ParticipantList, status_code=status.HTTP_200_OK)
+
+@router.get(
+    "/organizers/{event_id}",
+    response_model=ParticipantList,
+    status_code=status.HTTP_200_OK,
+)
 def list_organizers(
     event_id: UUID,
     session: Session = Depends(get_session),
     current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)),
-    require_verified: User = Depends(get_verified_user)
+    require_verified: User = Depends(get_verified_user),
 ):
     statement = (
         select(User, Ticket.role)
@@ -32,22 +43,21 @@ def list_organizers(
     )
     rows = session.exec(statement).all()
 
-    organizers = [
-        ParticipantOut(**user.model_dump(), role=role)
-        for user, role in rows
-    ]
+    organizers = [ParticipantOut(**user.model_dump(), role=role) for user, role in rows]
     return ParticipantList(users=organizers)
 
-@router.get("/participants/{event_id}", response_model=TicketList, status_code=status.HTTP_200_OK)
+
+@router.get(
+    "/participants/{event_id}",
+    response_model=TicketList,
+    status_code=status.HTTP_200_OK,
+)
 def list_participants(
-    event_id:UUID,
+    event_id: UUID,
     session: Session = Depends(get_session),
-    require_verified: User = Depends(get_verified_user)
+    require_verified: User = Depends(get_verified_user),
 ):
-    tickets = session.exec(
-        select(Ticket)
-        .where(Ticket.event_id == event_id)
-    ).all()
+    tickets = session.exec(select(Ticket).where(Ticket.event_id == event_id)).all()
 
     return TicketList(tickets=tickets)
 
@@ -61,7 +71,7 @@ def get_participant_by_ticket_code(
     ticket_code: str,
     session: Session = Depends(get_session),
     current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)),
-    require_verified: User = Depends(get_verified_user)
+    require_verified: User = Depends(get_verified_user),
 ):
     ticket = session.exec(
         select(Ticket).where(
@@ -83,22 +93,33 @@ def get_participant_by_ticket_code(
 
 
 @router.get("/{attendee_id}", response_model=User, status_code=status.HTTP_200_OK)
-def read_attendee(attendee_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)), require_verified: User = Depends(get_verified_user)):
+def read_attendee(
+    attendee_id: UUID,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)),
+    require_verified: User = Depends(get_verified_user),
+):
     attendee = session.get(User, attendee_id)
     if attendee is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Attendee not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Attendee not found"
         )
     return attendee
 
+
 @router.delete("/{id}", response_model=CheckInResponse, status_code=status.HTTP_200_OK)
-def delete_attendee(id: UUID, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)), require_verified: User = Depends(get_verified_user)):
-    attendee = session.exec(select(User).where(User.id == id and User.id == current_user.id)).one_or_none()
+def delete_attendee(
+    id: UUID,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)),
+    require_verified: User = Depends(get_verified_user),
+):
+    attendee = session.exec(
+        select(User).where(User.id == id and User.id == current_user.id)
+    ).one_or_none()
     if attendee is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Attendee not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Attendee not found"
         )
     session.delete(attendee)
     session.commit()
@@ -110,7 +131,7 @@ async def create_ticket(
     event_id: UUID,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
-    require_verified: User = Depends(get_verified_user)
+    require_verified: User = Depends(get_verified_user),
 ):
     event = session.get(Event, event_id)
     if event is None:
@@ -122,37 +143,35 @@ async def create_ticket(
 
     existing_ticket = session.exec(
         select(Ticket).where(
-            Ticket.event_id == event_id,
-            Ticket.attendee_id == current_user.id
+            Ticket.event_id == event_id, Ticket.attendee_id == current_user.id
         )
     ).first()
 
     if existing_ticket:
-        raise HTTPException(
-            400,
-            "User already has a ticket for this event"
-        )
+        raise HTTPException(400, "User already has a ticket for this event")
 
     ticket = Ticket(
-        attendee_id=current_user.id,
-        event_id=event_id,
-        role=EventRole.attendee
+        attendee_id=current_user.id, event_id=event_id, role=EventRole.attendee
     )
 
     session.add(ticket)
     session.commit()
     session.refresh(ticket)
 
-    html_message = generate_ticket_email(attendee.name, event.name, event.date, event.location, ticket.ticket_code, ticket.qr_code_url)
+    html_message = generate_ticket_email(
+        attendee.name,
+        event.name,
+        event.date,
+        event.location,
+        ticket.ticket_code,
+        ticket.qr_code_url,
+    )
 
     message = create_message(
         reciepients=[attendee.email],
         subject=f"Your Ticket for {event.name}",
-        body=html_message
+        body=html_message,
     )
     await mail.send_message(message)
 
-    return TicketResponse(
-        message="Ticket created successfully",
-        ticket=ticket
-    )
+    return TicketResponse(message="Ticket created successfully", ticket=ticket)

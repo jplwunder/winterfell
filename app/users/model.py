@@ -23,6 +23,7 @@ class User(SQLModel, table=True):
                 return ticket.role
         return None
 
+
 class UserPublic(SQLModel):
     id: UUID
     name: str

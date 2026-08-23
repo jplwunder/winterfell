@@ -17,36 +17,38 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 router = APIRouter(prefix="/email", tags=["email"])
 
 config = ConnectionConfig(
-    MAIL_USERNAME = os.getenv("MAIL_USERNAME"),
-    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD"),
-    MAIL_FROM = os.getenv("MAIL_FROM"),
-    MAIL_PORT = os.getenv("MAIL_PORT"),
-    MAIL_SERVER = os.getenv("MAIL_SERVER"),
+    MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
+    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
+    MAIL_FROM=os.getenv("MAIL_FROM"),
+    MAIL_PORT=os.getenv("MAIL_PORT"),
+    MAIL_SERVER=os.getenv("MAIL_SERVER"),
     MAIL_FROM_NAME=os.getenv("MAIL_FROM_NAME"),
-    MAIL_STARTTLS = True,
-    MAIL_SSL_TLS = False,
-    USE_CREDENTIALS = True,
-    VALIDATE_CERTS = True,
-    TEMPLATE_FOLDER=Path(BASE_DIR, "templates")
+    MAIL_STARTTLS=True,
+    MAIL_SSL_TLS=False,
+    USE_CREDENTIALS=True,
+    VALIDATE_CERTS=True,
+    TEMPLATE_FOLDER=Path(BASE_DIR, "templates"),
 )
 
-mail = FastMail(config = config)
+mail = FastMail(config=config)
+
 
 def create_message(reciepients: list[str], subject: str, body: str):
 
     message = MessageSchema(
-        recipients=reciepients,
-        subject=subject,
-        body=body,
-        subtype="html"
+        recipients=reciepients, subject=subject, body=body, subtype="html"
     )
     return message
 
-def create_user_verification_code(email:str, session: Session) -> int:
+
+def create_user_verification_code(email: str, session: Session) -> int:
     code = random.randint(100000, 999999)
-    expires_at = datetime.now(base_datetime.UTC).replace(tzinfo=None) + timedelta(minutes=10)
+    expires_at = datetime.now(base_datetime.UTC).replace(tzinfo=None) + timedelta(
+        minutes=10
+    )
     session.add(UserVerificationCode(email=email, code=code, expires_at=expires_at))
     return code
+
 
 def generate_verification_code_email(code: int) -> str:
     return f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -123,13 +125,14 @@ def generate_verification_code_email(code: int) -> str:
 </body>
 </html>"""
 
+
 def generate_ticket_email(
     user_name: str,
     event_name: str,
     event_date: str,
     event_location: str,
     ticket_code: str,
-    qr_code_url: str = None
+    qr_code_url: str = None,
 ) -> str:
     return f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -229,12 +232,13 @@ def generate_ticket_email(
 </body>
 </html>"""
 
+
 def generate_staff_added_email(
     user_name: str,
     event_name: str,
     event_date: str,
     event_location: str,
-    staff_role: str = "Apoio / Credenciamento"
+    staff_role: str = "Apoio / Credenciamento",
 ) -> str:
     return f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">

@@ -13,9 +13,11 @@ class CheckInLogResponse(SQLModel):
     checked_by_name: str | None
     checked_at: datetime
 
+
 class CheckInResponse(SQLModel):
     message: str
     check_in_log: CheckInLogResponse
+
 
 class CheckInLogList(SQLModel):
     logs: list[CheckInLogResponse]
@@ -25,12 +27,15 @@ class TicketCreate(SQLModel):
     attendee_id: UUID
     event_id: UUID
 
+
 class TicketResponse(SQLModel):
     message: str
     ticket: Ticket
 
+
 class TicketList(SQLModel):
     tickets: list[Ticket]
+
 
 class TicketRead(SQLModel):
     ticket: Ticket

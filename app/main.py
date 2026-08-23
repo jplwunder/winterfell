@@ -10,16 +10,14 @@ from app.events.service import router as events_router
 from app.users.service import router as users_router
 from fastapi.middleware.cors import CORSMiddleware
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     yield
 
 
-app = FastAPI(
-    lifespan=lifespan,
-    swagger_ui_parameters={"persistAuthorization": True}
-)
+app = FastAPI(lifespan=lifespan, swagger_ui_parameters={"persistAuthorization": True})
 
 app.add_middleware(
     CORSMiddleware,

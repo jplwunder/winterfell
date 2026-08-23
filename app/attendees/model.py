@@ -8,19 +8,30 @@ from app.events.model import Event
 from app.users.model import User
 from app.core.roles import EventRole
 
+
 class Ticket(SQLModel, table=True):
     id: UUID | None = Field(default_factory=uuid4, primary_key=True)
     attendee_id: UUID = Field(foreign_key="user.id")
     event_id: UUID = Field(foreign_key="event.id")
-    ticket_code: str = Field(default_factory=lambda: secrets.token_urlsafe(12), unique=True)
+    ticket_code: str = Field(
+        default_factory=lambda: secrets.token_urlsafe(12), unique=True
+    )
     checked_in: bool = Field(default=False)
     checked_in_at: datetime | None = None
     cancelled: bool = Field(default=False)
     attendee: User = Relationship(back_populates="tickets")
     event: Event = Relationship(back_populates="tickets")
-    check_in_logs: list["CheckInLog"] = Relationship(back_populates="ticket", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
-    role: EventRole = Field(default=EventRole.attendee, index=True)  # Default role is "attendee"
-    qr_code_url: str | None = Field(default=None, index=True)  # URL for the QR code image
+    check_in_logs: list["CheckInLog"] = Relationship(
+        back_populates="ticket",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+    role: EventRole = Field(
+        default=EventRole.attendee, index=True
+    )  # Default role is "attendee"
+    qr_code_url: str | None = Field(
+        default=None, index=True
+    )  # URL for the QR code image
+
 
 class CheckInLog(SQLModel, table=True):
     id: UUID | None = Field(default_factory=uuid4, primary_key=True)
