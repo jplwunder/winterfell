@@ -1,16 +1,15 @@
-from datetime import datetime, timedelta, timezone
+import os
 import random
+from datetime import datetime, timedelta
+import datetime as base_datetime
+from pathlib import Path
 from typing import Dict
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi_mail import ConnectionConfig, FastMail, MessageSchema
 from sqlmodel import Session, select
-from fastapi import APIRouter, HTTPException, status, Depends
+
 from app.core.database import get_session
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
-import os
-from pathlib import Path
-
-from sqlmodel import Session
-
 from app.email.model import UserVerificationCode
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -43,14 +42,13 @@ def create_message(reciepients: list[str], subject: str, body: str):
     )
     return message
 
-def create_user_verification_code(email:str ,session: Session) -> str:
+def create_user_verification_code(email:str, session: Session) -> int:
     code = random.randint(100000, 999999)
-    expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=10)
+    expires_at = datetime.now(base_datetime.UTC).replace(tzinfo=None) + timedelta(minutes=10)
     session.add(UserVerificationCode(email=email, code=code, expires_at=expires_at))
-    session.commit()
-    return str(code)
+    return code
 
-def generate_verification_code_email(code: str) -> str:
+def generate_verification_code_email(code: int) -> str:
     return f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -64,7 +62,7 @@ def generate_verification_code_email(code: str) -> str:
       <td align="center">
         <!-- Container Principal -->
         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 460px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-          
+
           <!-- Banner / Ícone -->
           <tr>
             <td align="center" style="padding: 36px 32px 12px 32px;">
@@ -80,7 +78,7 @@ def generate_verification_code_email(code: str) -> str:
               <h1 style="color: #0f172a; font-size: 20px; font-weight: 700; margin: 0 0 12px 0; text-align: center;">
                 Código de Verificação
               </h1>
-              
+
               <p style="color: #64748b; font-size: 14px; line-height: 1.6; margin: 0 0 24px 0; text-align: center;">
                 Utilize o código abaixo para confirmar seu e-mail e concluir sua inscrição:
               </p>
@@ -126,10 +124,10 @@ def generate_verification_code_email(code: str) -> str:
 </html>"""
 
 def generate_ticket_email(
-    user_name: str, 
-    event_name: str, 
-    event_date: str, 
-    event_location: str, 
+    user_name: str,
+    event_name: str,
+    event_date: str,
+    event_location: str,
     ticket_code: str,
     qr_code_url: str = None
 ) -> str:
@@ -146,7 +144,7 @@ def generate_ticket_email(
       <td align="center">
         <!-- Container Principal -->
         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 480px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-          
+
           <!-- Banner Superior / Status -->
           <tr>
             <td align="center" style="background-color: #0f172a; padding: 28px 24px; text-align: center;">
@@ -187,7 +185,7 @@ def generate_ticket_email(
                 <span style="color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">
                   Código do Ingresso
                 </span>
-                
+
                 {"<img src='" + qr_code_url + "' alt='QR Code' width='140' height='140' style='margin: 8px auto 12px auto; display: block;' />" if qr_code_url else ""}
 
                 <div style="font-family: monospace, Courier, monospace; font-size: 16px; font-weight: 700; color: #2563eb; background-color: #eff6ff; padding: 8px 12px; border-radius: 6px; word-break: break-all; display: inline-block;">
@@ -233,9 +231,9 @@ def generate_ticket_email(
 
 def generate_staff_added_email(
     user_name: str,
-    event_name: str, 
-    event_date: str, 
-    event_location: str, 
+    event_name: str,
+    event_date: str,
+    event_location: str,
     staff_role: str = "Apoio / Credenciamento"
 ) -> str:
     return f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -251,7 +249,7 @@ def generate_staff_added_email(
       <td align="center">
         <!-- Container Principal -->
         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 480px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-          
+
           <!-- Banner Superior / Distintivo de Staff -->
           <tr>
             <td align="center" style="background-color: #0f172a; padding: 28px 24px; text-align: center;">

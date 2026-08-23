@@ -1,53 +1,61 @@
 import hashlib
-from typing import Dict
+from typing import Annotated
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
-from app.core.config import DOMAIN
 from app.core.database import get_session
-from app.core.roles import EventRole
-from app.email.service import create_message, generate_verification_code_email, mail, create_user_verification_code
+from app.core.security import (
+    get_current_user,
+    is_valid_email,
+    require_verified_user,
+)
+from app.email.service import (
+    create_message,
+    create_user_verification_code,
+    generate_verification_code_email,
+    mail,
+)
 from app.users.model import User, UserPublic
-from app.users.schema import UserCreate, UserList, UserResponse
-from app.core.security import generate_email_token, get_current_user, is_valid_email, require_verified_user
+from app.users.schema import UserCreate, UserResponse
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(user: UserCreate, session: Session = Depends(get_session)):
-    user = User(id=uuid4(), **user.model_dump())
-    hashed_password = hashlib.sha256(user.password.encode()).hexdigest() if user.password else None
+async def create_user(user_payload: UserCreate, session: Annotated[Session, Depends(get_session)]):
+    user = User(id=uuid4(), **user_payload.model_dump(exclude={'password'}))
+
+    hashed_password = hashlib.sha256(user_payload.password.encode()).hexdigest() if user_payload.password else None
     user.password = hashed_password
+
     if is_valid_email(user.email):
         existing_user = session.exec(select(User).where(User.email == user.email)).first()
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
+                detail="Email já registrado."
             )
-
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid email format"
+            detail="Formato de e-mail inválido"
         )
     session.add(user)
-    session.commit()
-    session.refresh(user)
+
     code = create_user_verification_code(user.email, session)
-
     html_message = generate_verification_code_email(code)
-
     message = create_message(
         reciepients=[user.email],
-        subject="Código de verificação",
+        subject="[Dois ou Mais] Verifique o seu endereço de e-mail",
         body=html_message
     )
     await mail.send_message(message)
+
+    session.commit()
+
     return {
-        "message": "User created successfully. Check your email to confirm your account",
+        "message": "User created successfully. Waiting for e-mail confirmation.",
         "user": user
     }
 
@@ -75,7 +83,7 @@ def read_user(user_id: UUID, session: Session = Depends(get_session), current_us
     return {"email": user.email, "name": user.name, "id": user.id}
 
 
-@router.delete("/{user_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
+@router.delete("/{user_id}", response_model=dict[str, str], status_code=status.HTTP_200_OK)
 def delete_user(user_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(get_current_user), require_verified: User = Depends(require_verified_user)):
     user = session.get(User, user_id)
     if user is None:
