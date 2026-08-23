@@ -10,7 +10,7 @@ from sqlmodel import Session, select
 
 from app.core.database import get_session
 from app.core.roles import EventRole
-from app.core.security import get_current_user, require_event_role, require_verified_user
+from app.core.security import get_current_user, require_event_role, get_verified_user
 from app.events.model import Event
 from app.events.schema import EventCreate, EventList, EventResponse, RoleUpdate
 from app.core.security import require_role
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/events", tags=["events"])
 
 
 @router.post("/", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
-def create_event(event: EventCreate, session: Session = Depends(get_session), current_user: User = Depends(get_current_user), require_verified: User = Depends(require_verified_user)):
+def create_event(event: EventCreate, session: Session = Depends(get_session), current_user: User = Depends(get_current_user), require_verified: User = Depends(get_verified_user)):
 	event = Event(id=uuid4(), **event.model_dump())
 	existing_event = session.exec(select(Event).where(Event.id == event.id, Event.deleted == False)).first()
 	if existing_event:
@@ -54,7 +54,7 @@ def create_event(event: EventCreate, session: Session = Depends(get_session), cu
 
 
 @router.post("/{event_id}/addstaff/{user_id}", response_model=Event, status_code=status.HTTP_200_OK)
-async def add_staff(user_id: UUID, event_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin)), require_verified: User = Depends(require_verified_user)):
+async def add_staff(user_id: UUID, event_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin)), require_verified: User = Depends(get_verified_user)):
 	event = session.get(Event, event_id)
 	if event is None:
 		raise HTTPException(
@@ -95,7 +95,7 @@ async def add_staff(user_id: UUID, event_id: UUID, session: Session = Depends(ge
 			subject=f"Your Role in {event.name}",
 			body=html_message
 		)
-	
+
 	await mail.send_message(message)
 
 	return {
@@ -138,7 +138,7 @@ def read_event(event_id: UUID, session: Session = Depends(get_session)):
 
 
 @router.post("/{event_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK)
-def delete_event(event_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(get_current_user), require_verified: User = Depends(require_verified_user), admin_check: User = Depends(require_event_role(EventRole.admin))):
+def delete_event(event_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(get_current_user), require_verified: User = Depends(get_verified_user), admin_check: User = Depends(require_event_role(EventRole.admin))):
 	statement = select(Event).join(Ticket, Ticket.event_id == Event.id).where(Event.id == event_id, Ticket.attendee_id == current_user.id)
 	event = session.exec(statement).one_or_none()
 	if event is None:
@@ -152,7 +152,7 @@ def delete_event(event_id: UUID, session: Session = Depends(get_session), curren
 	return {"message": "Event deleted successfully"}
 
 @router.post("/{event_id}/check-in/{ticket_code}", response_model=CheckInResponse, status_code=status.HTTP_201_CREATED)
-def check_in_attendee(event_id: UUID, ticket_code: str, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)), require_verified: User = Depends(require_verified_user)):
+def check_in_attendee(event_id: UUID, ticket_code: str, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)), require_verified: User = Depends(get_verified_user)):
     attendee = session.exec(
         select(Ticket).where(Ticket.ticket_code == ticket_code, Ticket.event_id == event_id, Ticket.cancelled == False)
     ).one_or_none()
@@ -186,7 +186,7 @@ def check_in_attendee(event_id: UUID, ticket_code: str, session: Session = Depen
     }
 
 @router.post("/{event_id}/cancel/{ticket_code}", response_model=TicketResponse, status_code=status.HTTP_200_OK)
-def cancel_ticket(event_id: UUID, ticket_code: str, session: Session = Depends(get_session), require_verified: User = Depends(require_verified_user), current_user: User = Depends(get_current_user)):
+def cancel_ticket(event_id: UUID, ticket_code: str, session: Session = Depends(get_session), require_verified: User = Depends(get_verified_user), current_user: User = Depends(get_current_user)):
     ticket = session.exec(
         select(Ticket).where(Ticket.ticket_code == ticket_code, Ticket.event_id == event_id, Ticket.attendee_id == current_user.id, Ticket.cancelled == False)
     ).one_or_none()
@@ -201,7 +201,7 @@ def cancel_ticket(event_id: UUID, ticket_code: str, session: Session = Depends(g
     return {"message": "Ticket cancelled successfully"}
 
 @router.get("/{event_id}/check-in-logs", response_model=CheckInLogList, status_code=status.HTTP_200_OK)
-def get_check_in_logs(event_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)), require_verified: User = Depends(require_verified_user)):
+def get_check_in_logs(event_id: UUID, session: Session = Depends(get_session), current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)), require_verified: User = Depends(get_verified_user)):
 	logs = session.exec(
     select(
         CheckInLog.id,

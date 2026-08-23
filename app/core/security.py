@@ -1,4 +1,5 @@
 import secrets
+from typing import Annotated
 from uuid import UUID
 
 import jwt
@@ -19,7 +20,7 @@ email_salt = "email-confirmation"
 serializer = URLSafeTimedSerializer(SECRET_KEY)
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
+def get_current_user(session: Annotated[Session, Depends(get_session)], token: Annotated[str, Depends(oauth2_scheme)]):
     try:
         payload = jwt.decode(
             token,
@@ -62,7 +63,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Dep
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token"
         )
-    
+
 def get_event_id_from_ticket_code(ticket_code: str, session: Session = Depends(get_session)) -> UUID:
     ticket = session.exec(
         select(Ticket).where(Ticket.ticket_code == ticket_code)
@@ -76,7 +77,7 @@ def get_event_id_from_ticket_code(ticket_code: str, session: Session = Depends(g
 
     return ticket.event_id
 
-def require_verified_user(current_user: User = Depends(get_current_user)) -> User:
+def get_verified_user(current_user: User = Depends(get_current_user)) -> User:
     if not current_user.is_verified:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -122,7 +123,7 @@ def is_valid_email(email: str) -> bool:
         email.find(".@") == -1
     )
 
-def generate_email_token(data: dict) -> str: 
+def generate_email_token(data: dict) -> str:
     email_token = serializer.dumps(data, salt=email_salt)
     return email_token
 

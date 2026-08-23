@@ -4,20 +4,30 @@ from random import random
 from typing import Annotated
 from urllib.parse import unquote
 
-from itsdangerous import BadSignature, SignatureExpired
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordRequestForm
+from itsdangerous import BadSignature, SignatureExpired
 from sentry_sdk import flush
 from sqlmodel import Session, select
 
 from app.core.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
 from app.core.database import get_session
-from app.email.schema import Email, VerifyCodeSchema
-from app.users.model import User
-from app.core.security import decode_email_token, get_current_user, oauth2_scheme, require_verified_user
-from app.email.service import generate_verification_code_email, mail, create_message, create_user_verification_code
+from app.core.security import (
+    decode_email_token,
+    get_current_user,
+    get_verified_user,
+    oauth2_scheme,
+)
 from app.email.model import UserVerificationCode
+from app.email.schema import Email, VerifyCodeSchema
+from app.email.service import (
+    create_message,
+    create_user_verification_code,
+    generate_verification_code_email,
+    mail,
+)
+from app.users.model import User
 
 router = APIRouter(tags=["auth"], prefix="/auth")
 
@@ -68,7 +78,7 @@ async def login(
 
 
 @router.get("/me")
-async def me(user=Depends(get_current_user), session: Session = Depends(get_session)):
+async def me(user: Annotated[User, Depends(get_current_user)], session: Annotated[Session, Depends(get_session)]):
     if not session or user.is_verified is False:
         await send_verification_code(user.email, session)
         raise HTTPException(
@@ -76,6 +86,7 @@ async def me(user=Depends(get_current_user), session: Session = Depends(get_sess
             detail="Conta de usuário não verificada. Verifique seu e-mail para o link de verificação"
         )
     return {"id": str(user.id), "name": user.name, "email": user.email}
+
 
 @router.post("/send-verification-code/{email}", status_code=status.HTTP_200_OK)
 async def send_verification_code(email: str, session: Session = Depends(get_session)):
