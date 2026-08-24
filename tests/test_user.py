@@ -1,28 +1,38 @@
-from main import app
+from app.main import app
 from fastapi.testclient import TestClient
 import hashlib
 import random
 import string
-
-from tests.helper import create_user_test, random_string
+from tests.helper import create_user, random_string
 
 
 def random_email():
     return "".join(random.choices(string.ascii_lowercase, k=10)) + "@example.com"
 
 
+
 def test_create_user(client):
-    response = create_user_test(
-        client, random_string(10), random_email(), 30, "password123"
+    response = client.post(
+        "/users",
+        json={
+            "name": random_string(10),
+            "email": random_email(),
+            "age": 30,
+            "password": "password123",
+        },
     )
-    user_id = response["id"]
+    assert response.status_code == 201
+    data = response.json()
+    assert "id" in data
+    user_id = data["id"]
+
 
 
 def test_create_user_with_existing_email(client):
     # First, create a user
     email = random_email()
 
-    create_user_test(client, "Jake Paul", email, 30, "password123")
+    create_user(client, "Jake Paul", email, 30, "password123")
 
     response = client.post(
         "/users",
@@ -74,7 +84,7 @@ def test_list_users(client):
 
 def test_read_user(client):
 
-    response_create = create_user_test(
+    response_create = create_user(
         client, "Jane Doe", random_email(), 30, "password123"
     )
 
@@ -104,7 +114,7 @@ def test_read_nonexistent_user(client):
 
 
 def test_delete_user(client):
-    response_create = create_user_test(
+    response_create = create_user(
         client, "Alice Smith", "alice.smith@example.com", 30, "password123"
     )
     user_id = response_create["id"]

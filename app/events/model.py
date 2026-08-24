@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
+from pydantic import ConfigDict
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.roles import EventRole
@@ -26,8 +27,7 @@ class ParticipantOut(SQLModel):
     email: str
     role: EventRole
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ParticipantList(SQLModel):

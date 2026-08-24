@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock, patch
+
 def random_string(length=10):
     import random
     import string
@@ -9,43 +11,43 @@ def random_email():
     return random_string(10) + "@example.com"
 
 
-def create_user_test(client, name, email, age, password):
-    response = client.post(
-        "/users", json={"name": name, "email": email, "age": age, "password": password}
-    )
+
+def test_create_user(client, name, email, password):
+    payload = {
+        "name": name,
+        "email": email,
+        "password": password,
+    }
+
+    with patch("app.email.service.create_message", new_callable=AsyncMock):
+        response = client.post("/users", json=payload)
+
     assert response.status_code == 201
-    return response.json()["user"]
 
+    data = response.json()
 
-def create_customer_test(client, token, name, email, age, password, address):
+    assert data["message"] == (
+        "User created successfully. Waiting for e-mail confirmation."
+    )
+
+    assert data["user"]["email"] == email
+    assert data["user"]["name"] == name
+
+    assert "password" not in data["user"]
+
+def create_event_test(client, token, name, date, location, description):
     response = client.post(
-        "/customers/",
+        "/events/",
         headers={"Authorization": f"Bearer {token}"},
-        json={
-            "name": name,
-            "email": email,
-            "age": age,
-            "password": password,
-            "address": address,
-        },
+        json={"name": name, "date": date, "location": location, "description": description},
     )
     assert response.status_code == 201
-    return response.json()["customer"]
-
-
-def create_order_test(client, token, customer_id, description):
-    response = client.post(
-        "/orders/",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"customer_id": customer_id, "description": description},
-    )
-    assert response.status_code == 201
-    return response.json()["order"]
+    return response.json()["event"]
 
 
 def get_auth_token(client):
-    user = create_user_test(
-        client, random_string(10), random_email(), 18, "password123"
+    user = test_create_user_success(
+        client, random_string(10), random_email(), "password123"
     )
 
     login = client.post(

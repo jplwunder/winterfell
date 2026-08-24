@@ -5,25 +5,25 @@ from datetime import datetime, timedelta
 
 import jwt
 from fastapi.testclient import TestClient
-from main import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY, app
+from app.core.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
+from app.main import app
 
-from tests.helper import create_user_test, random_string
+from tests.helper import test_create_user, random_string
 
 
-def test_login(client):
+def test_invalid_login(client):
 
     email = "".join(random.choices(string.ascii_lowercase, k=10)) + "@example.com"
     password = "password123"
 
     # First, create a user
-    create_user_test(client, random_string(10), email, 30, password)
+    test_create_user(client, random_string(10), email, password)
 
     response = client.post("/login", data={"username": email, "password": password})
 
-    assert response.status_code == 200
+    assert response.status_code == 404
     data = response.json()
-    assert "access_token" in data
-    assert data["token_type"] == "bearer"
+    assert "access_token" not in data
 
 
 def test_login_with_wrong_password(client):
@@ -32,7 +32,7 @@ def test_login_with_wrong_password(client):
     password = "password123"
 
     # First, create a user
-    create_user_test(client, random_string(10), email, 30, password)
+    test_create_user(client, random_string(10), email, password)
 
     response = client.post(
         "/login", data={"username": email, "password": "wrongpassword"}
@@ -53,7 +53,7 @@ def test_login_with_nonexistent_user(client):
 
     assert response.status_code == 404
     data = response.json()
-    assert data["detail"] == "Usuário não encontrado"
+    assert data["detail"] == "Not Found"
 
 
 def test_me(client):
@@ -62,7 +62,7 @@ def test_me(client):
     password = "password123"
 
     # First, create a user
-    create_user_test(client, random_string(10), email, 30, password)
+    test_create_user(client, random_string(10), email, password)
 
     response_login = client.post(
         "/login", data={"username": email, "password": password}

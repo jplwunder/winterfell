@@ -48,7 +48,6 @@ async def create_user(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Formato de e-mail inválido"
         )
-    session.add(user)
 
     code = create_user_verification_code(user.email, session)
     html_message = generate_verification_code_email(code)
@@ -59,6 +58,7 @@ async def create_user(
     )
     await mail.send_message(message)
 
+    session.add(user)
     session.commit()
 
     return {
@@ -71,9 +71,12 @@ async def create_user(
     "/by-email/{email}",
     response_model=UserPublic,
     status_code=status.HTTP_200_OK,
-    dependencies=Depends(get_verified_user),
 )
-def read_user_by_email(email: str, session: Annotated[Session, Depends(get_session)]):
+def read_user_by_email(
+    email: str,
+    session: Annotated[Session, Depends(get_session)],
+    require_verified: Annotated[User, Depends(get_verified_user)],
+):
     user = session.exec(select(User).where(User.email == email)).one_or_none()
     if user is None:
         raise HTTPException(
