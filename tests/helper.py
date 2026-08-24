@@ -10,9 +10,7 @@ def random_string(length=10):
 def random_email():
     return random_string(10) + "@example.com"
 
-
-
-def test_create_user(client, name, email, password):
+def create_user(client, name, email, password):
     payload = {
         "name": name,
         "email": email,
@@ -34,6 +32,7 @@ def test_create_user(client, name, email, password):
     assert data["user"]["name"] == name
 
     assert "password" not in data["user"]
+    return 
 
 def create_event_test(client, token, name, date, location, description):
     response = client.post(
@@ -43,15 +42,3 @@ def create_event_test(client, token, name, date, location, description):
     )
     assert response.status_code == 201
     return response.json()["event"]
-
-
-def get_auth_token(client):
-    user = test_create_user_success(
-        client, random_string(10), random_email(), "password123"
-    )
-
-    login = client.post(
-        "/login", data={"username": user["email"], "password": "password123"}
-    )
-
-    return login.json()["access_token"]
