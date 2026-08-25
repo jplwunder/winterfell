@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from app.core.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
 from app.main import app
 
-from tests.helper import create_user, random_string
+from tests.helper import create_user, me_test, random_string, verify_code_test
 
 
 def test_login(client):
@@ -73,8 +73,6 @@ def test_me(client):
 
     email = "".join(random.choices(string.ascii_lowercase, k=10)) + "@example.com"
     password = "password123"
-
-    # First, create a user
     create_user(client, random_string(10), email, password)
 
     response_login = client.post(
@@ -85,7 +83,16 @@ def test_me(client):
     data_login = response_login.json()
     token = data_login["access_token"]
 
-    response_me = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    verification_code = me_test(client, token)
+
+    assert verification_code is not None
+
+    response_verify = verify_code_test(client, email, verification_code)
+    assert response_verify.status_code == 200
+
+    response_me = client.get(
+        "/auth/me", headers={"Authorization": f"Bearer {token}"}
+    )
 
     assert response_me.status_code == 200
     assert response_me.json()["email"] == email
@@ -96,9 +103,6 @@ def test_me_with_invalid_token(client):
     response_me = client.get("/auth/me", headers={"Authorization": "Bearer invalidtoken"})
     assert response_me.status_code == 401
     assert response_me.json()["detail"] == "Invalid token"
-
-
-def test_me_without_token(client):
 
     response_me = client.get("/auth/me")
     assert response_me.status_code == 401
@@ -120,15 +124,6 @@ def test_me_with_expired_token(client):
     data = response.json()
 
     assert data["detail"] == "Token has expired"
-
-
-def test_me_with_malformed_token(client):
-
-    response_me = client.get("/auth/me", headers={"Authorization": "Bearer malformedtoken"})
-    assert response_me.status_code == 401
-    data_me = response_me.json()
-    assert data_me["detail"] == "Invalid token"
-
 
 def test_auth_with_missing_token(client):
 

@@ -1,4 +1,9 @@
+import hashlib
 from unittest.mock import AsyncMock, patch
+
+from app.email.service import create_user_verification_code
+from app.core.security import get_current_user
+from app.users.model import User
 
 def random_string(length=10):
     import random
@@ -32,7 +37,7 @@ def create_user(client, name, email, password):
     assert data["user"]["name"] == name
 
     assert "password" not in data["user"]
-    return 
+    return data["user"]
 
 def create_event_test(client, token, name, date, location, description):
     response = client.post(
@@ -42,3 +47,28 @@ def create_event_test(client, token, name, date, location, description):
     )
     assert response.status_code == 201
     return response.json()["event"]
+
+def me_test(client, token):
+    captured_code = None
+
+    def capture_verification_code(email, session):
+        nonlocal captured_code
+        captured_code = create_user_verification_code(email, session)
+        return captured_code
+
+    with (
+        patch(
+            "app.core.auth.create_user_verification_code",
+            side_effect=capture_verification_code,
+        ),
+        patch("app.core.auth.mail.send_message", new_callable=AsyncMock),
+    ):
+        response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    return response, captured_code
+
+def verify_code_test(client, email, code):
+    response = client.post(
+        "/auth/verify-code",
+        json={"email": email, "code": str(code)},
+    )
+    return response

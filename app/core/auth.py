@@ -66,11 +66,11 @@ async def me(
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_session)],
 ):
-    if not session or user.is_verified is False:
+    if user.is_verified is False:
         await send_verification_code(user.email, session)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Conta de usuário não verificada. Verifique seu e-mail para o link de verificação",
+            detail="User is not verified. A verification code has been sent to your email.",
         )
     return {"id": str(user.id), "name": user.name, "email": user.email}
 

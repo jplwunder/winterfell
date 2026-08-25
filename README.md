@@ -131,5 +131,3 @@ Authorization: Bearer <token>
 2. Log in
 3. Receive a JWT token
 4. Include the token in protected API requests
-
-.
