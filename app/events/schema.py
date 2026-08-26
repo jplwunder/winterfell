@@ -19,6 +19,14 @@ class EventCreate(SQLModel):
     description: str | None = None
 
 
+class EventRead(SQLModel):
+    id: UUID
+    name: str
+    date: datetime
+    location: str
+    description: str | None = None
+
+
 class EventWithRole(SQLModel):
     id: UUID
     name: str
@@ -34,4 +42,4 @@ class EventList(SQLModel):
 
 class EventResponse(SQLModel):
     message: str
-    event: Event
+    event: EventRead

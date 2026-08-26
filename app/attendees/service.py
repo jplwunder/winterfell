@@ -18,6 +18,7 @@ from app.core.security import (
     generate_ticket_code,
     get_current_user,
     is_valid_email,
+    require_event_role,
     require_role,
     get_verified_user,
 )
@@ -33,7 +34,7 @@ router = APIRouter(prefix="/attendees", tags=["attendees"])
 def list_organizers(
     event_id: UUID,
     session: Session = Depends(get_session),
-    current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)),
+    current_user: User = Depends(require_event_role(EventRole.admin, EventRole.staff)),
     require_verified: User = Depends(get_verified_user),
 ):
     statement = (
