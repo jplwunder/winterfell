@@ -24,7 +24,7 @@ class CheckInLogList(SQLModel):
 
 
 class TicketCreate(SQLModel):
-    attendee_id: UUID
+    attendee_id: UUID | None = None
     event_id: UUID
 
 

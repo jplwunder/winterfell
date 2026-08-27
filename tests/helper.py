@@ -1,5 +1,6 @@
 import hashlib
 from unittest.mock import AsyncMock, patch
+from urllib import response
 
 from app.email.service import create_user_verification_code
 from app.core.security import get_current_user
@@ -22,7 +23,7 @@ def create_user(client, name, email, password):
         "password": password,
     }
 
-    with patch("app.email.service.create_message", new_callable=AsyncMock):
+    with patch("app.core.auth.mail.send_message", new_callable=AsyncMock):
         response = client.post("/users", json=payload)
 
     assert response.status_code == 201
@@ -65,6 +66,15 @@ def me_test(client, token):
     ):
         response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
     return response, captured_code
+
+def ticket_test(client, token, event_id):
+    with patch("app.attendees.service.mail.send_message", new_callable=AsyncMock):
+        response = client.post(
+            "/attendees/tickets",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"event_id": event_id},
+    )
+    return response
 
 def verify_code_test(client, email, code):
     response = client.post(

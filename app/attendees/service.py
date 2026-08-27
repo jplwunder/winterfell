@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 from app.core.database import get_session
 from app.core.roles import EventRole
 from app.attendees.model import CheckInLog, Ticket
-from app.attendees.schema import CheckInResponse, TicketList, TicketResponse, TicketRead
+from app.attendees.schema import CheckInResponse, TicketCreate, TicketList, TicketResponse, TicketRead
 from app.email.service import create_message, generate_ticket_email, mail
 from app.events.model import Event, ParticipantList, ParticipantOut
 from app.users.model import User
@@ -63,77 +63,14 @@ def list_participants(
     return TicketList(tickets=tickets)
 
 
-@router.get(
-    "/events/{event_id}/tickets/{ticket_code}",
-    response_model=TicketResponse,
-)
-def get_participant_by_ticket_code(
-    event_id: UUID,
-    ticket_code: str,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)),
-    require_verified: User = Depends(get_verified_user),
-):
-    ticket = session.exec(
-        select(Ticket).where(
-            Ticket.event_id == event_id,
-            Ticket.ticket_code == ticket_code,
-        )
-    ).one_or_none()
-
-    if ticket is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Ticket not found",
-        )
-
-    return TicketResponse(
-        message="Ticket retrieved successfully",
-        ticket=ticket,
-    )
-
-
-@router.get("/{attendee_id}", response_model=User, status_code=status.HTTP_200_OK)
-def read_attendee(
-    attendee_id: UUID,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)),
-    require_verified: User = Depends(get_verified_user),
-):
-    attendee = session.get(User, attendee_id)
-    if attendee is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Attendee not found"
-        )
-    return attendee
-
-
-@router.delete("/{id}", response_model=CheckInResponse, status_code=status.HTTP_200_OK)
-def delete_attendee(
-    id: UUID,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)),
-    require_verified: User = Depends(get_verified_user),
-):
-    attendee = session.exec(
-        select(User).where(User.id == id and User.id == current_user.id)
-    ).one_or_none()
-    if attendee is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Attendee not found"
-        )
-    session.delete(attendee)
-    session.commit()
-    return {"message": "Attendee check-in deleted successfully"}
-
-
 @router.post("/tickets", response_model=TicketResponse)
 async def create_ticket(
-    event_id: UUID,
+    ticket_payload: TicketCreate,
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
     require_verified: User = Depends(get_verified_user),
 ):
+    event_id = ticket_payload.event_id
     event = session.get(Event, event_id)
     if event is None:
         raise HTTPException(404, "Event not found")
