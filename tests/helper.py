@@ -16,7 +16,7 @@ def random_string(length=10):
 def random_email():
     return random_string(10) + "@example.com"
 
-def create_user(client, name, email, password):
+def create_user_help(client, name, email, password):
     payload = {
         "name": name,
         "email": email,
@@ -40,7 +40,7 @@ def create_user(client, name, email, password):
     assert "password" not in data["user"]
     return data["user"]
 
-def create_event_test(client, token, name, date, location, description):
+def create_event_help(client, token, name, date, location, description):
     response = client.post(
         "/events/",
         headers={"Authorization": f"Bearer {token}"},
@@ -49,7 +49,7 @@ def create_event_test(client, token, name, date, location, description):
     assert response.status_code == 201
     return response.json()["event"]
 
-def me_test(client, token):
+def me_help(client, token):
     captured_code = None
 
     def capture_verification_code(email, session):
@@ -67,7 +67,7 @@ def me_test(client, token):
         response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
     return response, captured_code
 
-def ticket_test(client, token, event_id):
+def ticket_help(client, token, event_id):
     with patch("app.attendees.service.mail.send_message", new_callable=AsyncMock):
         response = client.post(
             "/attendees/tickets",
@@ -76,7 +76,7 @@ def ticket_test(client, token, event_id):
     )
     return response
 
-def verify_code_test(client, email, code):
+def verify_code_help(client, email, code):
     response = client.post(
         "/auth/verify-code",
         json={"email": email, "code": str(code)},

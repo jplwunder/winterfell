@@ -94,21 +94,3 @@ def read_user(user_id: UUID, session: Session = Depends(get_session), current_us
             detail="User not found"
         )
     return {"email": user.email, "name": user.name, "id": user.id}
-
-@router.delete(
-    "/{user_id}", response_model=dict[str, str], status_code=status.HTTP_200_OK
-)
-def delete_user(
-    user_id: UUID,
-    session: Annotated[Session, Depends(get_session)],
-    current_user: Annotated[User, Depends(get_current_user)],
-    require_verified: Annotated[User, Depends(get_verified_user)],
-):
-    user = session.get(User, user_id)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
-    session.delete(user)
-    session.commit()
-    return {"message": "User deleted successfully"}

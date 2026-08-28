@@ -47,6 +47,7 @@ def create_user_verification_code(email: str, session: Session) -> int:
         minutes=10
     )
     session.add(UserVerificationCode(email=email, code=code, expires_at=expires_at))
+    session.commit()
     return code
 
 

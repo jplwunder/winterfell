@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from app.core.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
 from app.main import app
 
-from tests.helper import create_user, me_test, random_string, verify_code_test
+from tests.helper import create_user_help, me_help, random_string, verify_code_help
 
 
 def test_login(client):
@@ -18,7 +18,7 @@ def test_login(client):
     password = "password123"
 
     # First, create a user
-    create_user(client, random_string(10), email, password)
+    create_user_help(client, random_string(10), email, password)
 
     response = client.post("/auth/login", data={"username": email, "password": password})
 
@@ -45,7 +45,7 @@ def test_login_with_wrong_password(client):
     password = "password123"
 
     # First, create a user
-    create_user(client, random_string(10), email, password)
+    create_user_help(client, random_string(10), email, password)
 
     response = client.post(
         "/auth/login", data={"username": email, "password": "wrongpassword"}
@@ -73,7 +73,7 @@ def test_me(client):
 
     email = "".join(random.choices(string.ascii_lowercase, k=10)) + "@example.com"
     password = "password123"
-    create_user(client, random_string(10), email, password)
+    create_user_help(client, random_string(10), email, password)
 
     response_login = client.post(
         "/auth/login", data={"username": email, "password": password}
@@ -83,11 +83,11 @@ def test_me(client):
     data_login = response_login.json()
     token = data_login["access_token"]
 
-    verification_code = me_test(client, token)
+    verification_code = me_help(client, token)
 
     assert verification_code is not None
 
-    response_verify = verify_code_test(client, email, verification_code)
+    response_verify = verify_code_help(client, email, verification_code)
     assert response_verify.status_code == 200
 
     response_me = client.get(

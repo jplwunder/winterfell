@@ -113,9 +113,7 @@ async def verify_code(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid code"
         )
-    if verification_code.expires_at.replace(tzinfo=timezone.utc) < datetime.now(
-        timezone.utc
-    ):
+    if verification_code.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
         session.delete(verification_code)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Code has expired"
