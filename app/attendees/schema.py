@@ -20,7 +20,7 @@ class CheckInResponse(SQLModel):
 
 
 class CheckInLogList(SQLModel):
-    logs: list[CheckInLogResponse]
+    check_in_logs: list[CheckInLogResponse]
 
 
 class TicketCreate(SQLModel):
@@ -31,6 +31,7 @@ class TicketCreate(SQLModel):
 class TicketResponse(SQLModel):
     message: str
     ticket: "Ticket"
+    check_in_log: CheckInLogResponse | None = None
 
 
 class TicketList(SQLModel):

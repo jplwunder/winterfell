@@ -9,7 +9,14 @@ from sqlmodel import Session, select
 from app.core.database import get_session
 from app.core.roles import EventRole
 from app.attendees.model import CheckInLog, Ticket
-from app.attendees.schema import CheckInResponse, TicketCreate, TicketList, TicketResponse, TicketRead
+from app.attendees.schema import (
+    CheckInLogResponse,
+    CheckInResponse,
+    TicketCreate,
+    TicketList,
+    TicketResponse,
+    TicketRead,
+)
 from app.email.service import create_message, generate_ticket_email, mail
 from app.events.model import Event, ParticipantList, ParticipantOut
 from app.users.model import User
@@ -112,4 +119,16 @@ async def create_ticket(
     )
     await mail.send_message(message)
 
-    return TicketResponse(message="Ticket created successfully", ticket=ticket)
+    check_in_log = CheckInLogResponse(
+        id=ticket.id,
+        ticket_code=ticket.ticket_code,
+        attendee_name=attendee.name,
+        checked_by_name=attendee.name,
+        checked_at=datetime.now(timezone.utc),
+    )
+
+    return TicketResponse(
+        message="Ticket created successfully",
+        ticket=ticket,
+        check_in_log=check_in_log,
+    )

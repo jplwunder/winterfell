@@ -9,7 +9,7 @@ import random
 import string
 
 from tests.conftest import client
-from tests.helper import create_event_help, create_user_help, me_help, random_string, verify_code_help
+from tests.helper import create_event_help, create_user_help, me_help, random_string, ticket_help, verify_code_help
 
 
 def random_email():
@@ -156,4 +156,128 @@ def test_delete_event(client):
     assert response_delete_event.status_code == 200
 
 
+def test_check_in_attendee(client):
+    email = random_email()
+    password = "password123"
+    create_user_help(client, random_string(10), email, password)
 
+    response_login = client.post(
+        "/auth/login", data={"username": email, "password": password}
+    )
+
+    assert response_login.status_code == 200
+    data_login = response_login.json()
+    token = data_login["access_token"]
+
+    verification_code = me_help(client, token)
+
+    assert verification_code is not None
+
+    response_verify = verify_code_help(client, email, verification_code)
+    assert response_verify.status_code == 200
+
+    event_name = random_string(10)
+    event_date = (datetime.now() + timedelta(days=1)).isoformat()
+    event_location = random_string(10)
+    event_description = random_string(20)
+    response_create_event = create_event_help(client, token, event_name, event_date, event_location, event_description)
+    assert response_create_event["name"] == event_name
+    assert response_create_event["date"] == event_date
+    assert response_create_event["location"] == event_location
+    assert response_create_event["description"] == event_description
+
+    email2 = random_email()
+    create_user_help(client, random_string(10), email2, password)
+
+    response_login_2 = client.post(
+        "/auth/login", data={"username": email2, "password": password}
+    )
+
+    assert response_login_2.status_code == 200
+    data_login_2 = response_login_2.json()
+    token_2 = data_login_2["access_token"]
+
+    verification_code_2 = me_help(client, token_2)
+
+    assert verification_code_2 is not None
+
+    response_verify_2 = verify_code_help(client, email2, verification_code_2)
+    assert response_verify_2.status_code == 200
+
+    response_create_ticket = ticket_help(client, token_2, response_create_event['id'])
+
+    assert response_create_ticket.status_code == 200
+    data_create_ticket = response_create_ticket.json()
+    assert "ticket_code" in data_create_ticket["ticket"]
+
+    response_check_in = client.post(f"/events/{response_create_event['id']}/checkin/{data_create_ticket['check_in_log']['ticket_code']}", headers={"Authorization": f"Bearer {token_2}"})
+    assert response_check_in.status_code == 200
+
+def test_check_in_log(client):
+    email = random_email()
+    password = "password123"
+    create_user_help(client, random_string(10), email, password)
+
+    response_login = client.post(
+        "/auth/login", data={"username": email, "password": password}
+    )
+
+    assert response_login.status_code == 200
+    data_login = response_login.json()
+    token = data_login["access_token"]
+
+    verification_code = me_help(client, token)
+
+    assert verification_code is not None
+
+    response_verify = verify_code_help(client, email, verification_code)
+    assert response_verify.status_code == 200
+
+    event_name = random_string(10)
+    event_date = (datetime.now() + timedelta(days=1)).isoformat()
+    event_location = random_string(10)
+    event_description = random_string(20)
+    response_create_event = create_event_help(client, token, event_name, event_date, event_location, event_description)
+
+    assert response_create_event["name"] == event_name
+    assert response_create_event["date"] == event_date
+    assert response_create_event["location"] == event_location
+    assert response_create_event["description"] == event_description
+
+    email2 = random_email()
+    create_user_help(client, random_string(10), email2, password)
+
+    response_login_2 = client.post(
+        "/auth/login", data={"username": email2, "password": password}
+    )
+    assert response_login_2.status_code == 200
+    data_login_2 = response_login_2.json()
+    token_2 = data_login_2["access_token"]
+
+    verification_code_2 = me_help(client, token_2)
+    assert verification_code_2 is not None
+
+    response_verify_2 = verify_code_help(client, email2, verification_code_2)
+    assert response_verify_2.status_code == 200
+
+    response_create_ticket_2 = ticket_help(client, token_2, response_create_event['id'])
+    assert response_create_ticket_2.status_code == 200
+
+    data_create_ticket_2 = response_create_ticket_2.json()
+
+    response_login_3 = client.post(
+        "/auth/login", data={"username": email, "password": password}
+    )
+    assert response_login_3.status_code == 200
+    data_login_3 = response_login_3.json()
+    token_3 = data_login_3["access_token"]
+
+    response_check_in = client.post(f"/events/{response_create_event['id']}/checkin/{data_create_ticket_2['check_in_log']['ticket_code']}", headers={"Authorization": f"Bearer {token_3}"})
+    assert response_check_in.status_code == 200
+
+    response_check_in_log = client.get(
+        f"/events/{response_create_event['id']}/check-in-logs",
+        headers={"Authorization": f"Bearer {token_3}"}
+    )
+    data_check_in_log = response_check_in_log.json()
+    assert "check_in_logs" in data_check_in_log

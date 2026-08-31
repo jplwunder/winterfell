@@ -188,13 +188,18 @@ def delete_event(
 @router.post(
     "/{event_id}/check-in/{ticket_code}",
     response_model=CheckInResponse,
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
+)
+@router.post(
+    "/{event_id}/checkin/{ticket_code}",
+    response_model=CheckInResponse,
+    status_code=status.HTTP_200_OK,
 )
 def check_in_attendee(
     event_id: UUID,
     ticket_code: str,
     session: Session = Depends(get_session),
-    current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)),
+    current_user: User = Depends(get_current_user),
     require_verified: User = Depends(get_verified_user),
 ):
     attendee = session.exec(
@@ -208,6 +213,17 @@ def check_in_attendee(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Attendee not found"
         )
+
+    user_role = current_user.get_role(event_id)
+    if current_user.id != attendee.attendee_id and user_role not in (
+        EventRole.admin,
+        EventRole.staff,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to perform this action",
+        )
+
     if attendee.checked_in:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -272,9 +288,15 @@ def cancel_ticket(
 def get_check_in_logs(
     event_id: UUID,
     session: Session = Depends(get_session),
-    current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)),
+    current_user: User = Depends(get_current_user),
     require_verified: User = Depends(get_verified_user),
 ):
+    if current_user.get_role(event_id) not in (EventRole.admin, EventRole.staff):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to perform this action",
+        )
+
     logs = session.exec(
         select(
             CheckInLog.id,
@@ -289,7 +311,7 @@ def get_check_in_logs(
         .where(Ticket.event_id == event_id)
     ).all()
     return CheckInLogList(
-        logs=[
+        check_in_logs=[
             CheckInLogResponse(
                 id=row.id,
                 ticket_code=row.ticket_code,
