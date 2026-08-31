@@ -190,11 +190,6 @@ def delete_event(
     response_model=CheckInResponse,
     status_code=status.HTTP_200_OK,
 )
-@router.post(
-    "/{event_id}/checkin/{ticket_code}",
-    response_model=CheckInResponse,
-    status_code=status.HTTP_200_OK,
-)
 def check_in_attendee(
     event_id: UUID,
     ticket_code: str,

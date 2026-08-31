@@ -210,7 +210,7 @@ def test_check_in_attendee(client):
     data_create_ticket = response_create_ticket.json()
     assert "ticket_code" in data_create_ticket["ticket"]
 
-    response_check_in = client.post(f"/events/{response_create_event['id']}/checkin/{data_create_ticket['check_in_log']['ticket_code']}", headers={"Authorization": f"Bearer {token_2}"})
+    response_check_in = client.post(f"/events/{response_create_event['id']}/check-in/{data_create_ticket['check_in_log']['ticket_code']}", headers={"Authorization": f"Bearer {token_2}"})
     assert response_check_in.status_code == 200
 
 def test_check_in_log(client):
@@ -272,7 +272,7 @@ def test_check_in_log(client):
     data_login_3 = response_login_3.json()
     token_3 = data_login_3["access_token"]
 
-    response_check_in = client.post(f"/events/{response_create_event['id']}/checkin/{data_create_ticket_2['check_in_log']['ticket_code']}", headers={"Authorization": f"Bearer {token_3}"})
+    response_check_in = client.post(f"/events/{response_create_event['id']}/check-in/{data_create_ticket_2['check_in_log']['ticket_code']}", headers={"Authorization": f"Bearer {token_3}"})
     assert response_check_in.status_code == 200
 
     response_check_in_log = client.get(
