@@ -1,6 +1,7 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
+from pydantic import field_serializer
 from sqlmodel import SQLModel
 
 from app.core.roles import EventRole
@@ -24,6 +25,13 @@ class EventRead(SQLModel):
     location: str
     description: str | None = None
 
+    @field_serializer("date")
+    @staticmethod
+    def serialize_date(value: datetime) -> str:
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=UTC)
+        return value.astimezone(UTC).isoformat()
+
 
 class EventWithRole(SQLModel):
     id: UUID
@@ -32,6 +40,13 @@ class EventWithRole(SQLModel):
     location: str
     description: str | None = None
     role: EventRole
+
+    @field_serializer("date")
+    @staticmethod
+    def serialize_date(value: datetime) -> str:
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=UTC)
+        return value.astimezone(UTC).isoformat()
 
 
 class EventList(SQLModel):

@@ -34,7 +34,15 @@ def create_event(
     current_user: Annotated[User, Depends(get_current_user)],
     require_verified: Annotated[User, Depends(get_verified_user)],
 ):
+    event_datetime = event.date
+    if event_datetime.tzinfo is None:
+        event_datetime = event_datetime.replace(tzinfo=UTC)
+    else:
+        event_datetime = event_datetime.astimezone(UTC)
+
     event = Event(id=uuid4(), **event.model_dump())
+    event.date = event_datetime
+
     existing_event = session.exec(
         select(Event).where(Event.id == event.id, Event.deleted == False)
     ).first()
@@ -42,7 +50,7 @@ def create_event(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Event already exists"
         )
-    if event.date.replace(tzinfo=UTC) < datetime.now(UTC):
+    if event.date < datetime.now(UTC):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Event date cannot be in the past",
@@ -279,9 +287,9 @@ def cancel_ticket(
 )
 def get_check_in_logs(
     event_id: UUID,
-    session: Session = Annotated[Session, Depends(get_session)],
-    current_user: User = Annotated[User, Depends(get_current_user)],
-    require_verified: User = Annotated[User, Depends(get_verified_user)],
+    session: Annotated[Session, Depends(get_session)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    require_verified: Annotated[User, Depends(get_verified_user)],
 ):
     if current_user.get_role(event_id) not in (EventRole.admin, EventRole.staff):
         raise HTTPException(

@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from pydantic import ConfigDict
+from pydantic import ConfigDict, field_serializer
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.core.roles import EventRole
@@ -21,6 +21,13 @@ class Event(SQLModel, table=True):
         back_populates="event", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
     deleted: bool = Field(default=False, index=True)
+
+    @field_serializer("date")
+    @staticmethod
+    def serialize_date(value: datetime) -> str:
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=UTC)
+        return value.astimezone(UTC).isoformat()
 
 
 class ParticipantOut(SQLModel):
