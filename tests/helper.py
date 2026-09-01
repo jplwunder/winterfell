@@ -1,10 +1,7 @@
-import hashlib
 from unittest.mock import AsyncMock, patch
-from urllib import response
 
 from app.email.service import create_user_verification_code
-from app.core.security import get_current_user
-from app.users.model import User
+
 
 def random_string(length=10):
     import random

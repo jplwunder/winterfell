@@ -1,10 +1,8 @@
 from datetime import datetime
-from typing import List
 from uuid import UUID
 
 from sqlmodel import SQLModel
 
-from app.events.model import Event
 from app.core.roles import EventRole
 
 
@@ -37,7 +35,7 @@ class EventWithRole(SQLModel):
 
 
 class EventList(SQLModel):
-    events: List[EventWithRole]
+    events: list[EventWithRole]
 
 
 class EventResponse(SQLModel):

@@ -1,11 +1,16 @@
 
-from datetime import datetime, timedelta
-import random
-import string
+from datetime import UTC, datetime, timedelta
 
-from tests.helper import create_event_help, create_user_help, me_help, random_email, random_string, ticket_help, verify_code_help
-from fastapi.testclient import TestClient
-from app.main import app
+from tests.helper import (
+    create_event_help,
+    create_user_help,
+    me_help,
+    random_email,
+    random_string,
+    ticket_help,
+    verify_code_help,
+)
+
 
 def test_list_organizers(client):
     email = random_email()
@@ -27,7 +32,7 @@ def test_list_organizers(client):
     assert response_verify.status_code == 200
 
     event_name = random_string(10)
-    event_date = (datetime.now() + timedelta(days=1)).isoformat()
+    event_date = (datetime.now(UTC) + timedelta(days=1)).isoformat()
     event_location = random_string(10)
     event_description = random_string(20)
     response_create_event = create_event_help(client, token, event_name, event_date, event_location, event_description)
@@ -62,7 +67,7 @@ def test_list_participants(client):
     assert response_verify.status_code == 200
 
     event_name = random_string(10)
-    event_date = (datetime.now() + timedelta(days=1)).isoformat()
+    event_date = (datetime.now(UTC) + timedelta(days=1)).isoformat()
     event_location = random_string(10)
     event_description = random_string(20)
     response_create_event = create_event_help(client, token, event_name, event_date, event_location, event_description)
@@ -97,7 +102,7 @@ def test_create_ticket(client):
     assert response_verify.status_code == 200
 
     event_name = random_string(10)
-    event_date = (datetime.now() + timedelta(days=1)).isoformat()
+    event_date = (datetime.now(UTC) + timedelta(days=1)).isoformat()
     event_location = random_string(10)
     event_description = random_string(20)
     response_create_event = create_event_help(client, token, event_name, event_date, event_location, event_description)

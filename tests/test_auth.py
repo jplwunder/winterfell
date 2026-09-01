@@ -1,14 +1,10 @@
-import hashlib
 import random
 import string
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, patch
+from datetime import UTC, datetime, timedelta
 
 import jwt
-from fastapi.testclient import TestClient
-from app.core.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
-from app.main import app
 
+from app.core.config import ALGORITHM, SECRET_KEY
 from tests.helper import create_user_help, me_help, random_string, verify_code_help
 
 
@@ -113,7 +109,7 @@ def test_me_with_expired_token(client):
 
     email = "test@example.com"
 
-    expired_payload = {"sub": email, "exp": datetime.now() - timedelta(minutes=30)}
+    expired_payload = {"sub": email, "exp": datetime.now(UTC) - timedelta(minutes=30)}
 
     expired_token = jwt.encode(expired_payload, SECRET_KEY, algorithm=ALGORITHM)
 

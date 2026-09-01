@@ -1,8 +1,6 @@
-from app.main import app
-from fastapi.testclient import TestClient
-import hashlib
 import random
 import string
+
 from tests.helper import create_user_help, me_help, random_string, verify_code_help
 
 

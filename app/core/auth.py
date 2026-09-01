@@ -1,26 +1,20 @@
 import hashlib
-from datetime import datetime, timedelta, timezone
-from random import random
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from urllib.parse import unquote
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from itsdangerous import BadSignature, SignatureExpired
-from sentry_sdk import flush
 from sqlmodel import Session, select
 
 from app.core.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
 from app.core.database import get_session
 from app.core.security import (
-    decode_email_token,
     get_current_user,
-    get_verified_user,
-    oauth2_scheme,
 )
 from app.email.model import UserVerificationCode
-from app.email.schema import Email, VerifyCodeSchema
+from app.email.schema import VerifyCodeSchema
 from app.email.service import (
     create_message,
     create_user_verification_code,
@@ -35,7 +29,7 @@ router = APIRouter(tags=["auth"], prefix="/auth")
 @router.post("/login")
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    session: Session = Depends(get_session),
+    session: Annotated[Session, Depends(get_session)],
 ):
     statement = select(User).where(User.email == form_data.username)
 
@@ -52,7 +46,7 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Senha incorreta"
         )
-    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     payload = {"sub": str(user.id), "exp": expire}
 
@@ -76,7 +70,7 @@ async def me(
 
 
 @router.post("/send-verification-code/{email}", status_code=status.HTTP_200_OK)
-async def send_verification_code(email: str, session: Session = Depends(get_session)):
+async def send_verification_code(email: str, session: Annotated[Session, Depends(get_session)]):
     user = session.exec(select(User).where(User.email == email)).first()
     if not user:
         raise HTTPException(
@@ -93,7 +87,7 @@ async def send_verification_code(email: str, session: Session = Depends(get_sess
 
 @router.post("/verify-code", status_code=status.HTTP_200_OK)
 async def verify_code(
-    payload: VerifyCodeSchema, session: Session = Depends(get_session)
+    payload: VerifyCodeSchema, session: Annotated[Session, Depends(get_session)]
 ):
     cleaned_email = unquote(payload.email)
     user = session.exec(
@@ -113,7 +107,7 @@ async def verify_code(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid code"
         )
-    if verification_code.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+    if verification_code.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
         session.delete(verification_code)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Code has expired"

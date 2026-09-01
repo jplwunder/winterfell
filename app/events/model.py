@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
+
 from pydantic import ConfigDict
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -16,7 +17,7 @@ class Event(SQLModel, table=True):
     date: datetime = Field(index=True)
     location: str = Field(index=True)
     description: str | None = Field(default=None, index=True)
-    tickets: list["Ticket"] = Relationship(
+    tickets: list[Ticket] = Relationship(
         back_populates="event", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
     deleted: bool = Field(default=False, index=True)

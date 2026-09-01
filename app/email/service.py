@@ -1,15 +1,13 @@
+import datetime as base_datetime
 import os
 import random
 from datetime import datetime, timedelta
-import datetime as base_datetime
 from pathlib import Path
-from typing import Dict
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema
-from sqlmodel import Session, select
+from sqlmodel import Session
 
-from app.core.database import get_session
 from app.email.model import UserVerificationCode
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -133,7 +131,6 @@ def generate_ticket_email(
     event_date: str,
     event_location: str,
     ticket_code: str,
-    qr_code_url: str = None,
 ) -> str:
     return f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -189,9 +186,6 @@ def generate_ticket_email(
                 <span style="color: #64748b; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">
                   Código do Ingresso
                 </span>
-
-                {"<img src='" + qr_code_url + "' alt='QR Code' width='140' height='140' style='margin: 8px auto 12px auto; display: block;' />" if qr_code_url else ""}
-
                 <div style="font-family: monospace, Courier, monospace; font-size: 16px; font-weight: 700; color: #2563eb; background-color: #eff6ff; padding: 8px 12px; border-radius: 6px; word-break: break-all; display: inline-block;">
                   {ticket_code}
                 </div>

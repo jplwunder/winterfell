@@ -1,15 +1,15 @@
-from datetime import datetime, timedelta
-import email
-import token
-
-from app.main import app
-from fastapi.testclient import TestClient
-import hashlib
 import random
 import string
+from datetime import UTC, datetime, timedelta
 
-from tests.conftest import client
-from tests.helper import create_event_help, create_user_help, me_help, random_string, ticket_help, verify_code_help
+from tests.helper import (
+    create_event_help,
+    create_user_help,
+    me_help,
+    random_string,
+    ticket_help,
+    verify_code_help,
+)
 
 
 def random_email():
@@ -37,7 +37,7 @@ def test_create_event(client):
     assert response_verify.status_code == 200
 
     event_name = random_string(10)
-    event_date = (datetime.now() + timedelta(days=1)).isoformat()
+    event_date = (datetime.now(UTC) + timedelta(days=1)).isoformat()
     event_location = random_string(10)
     event_description = random_string(20)
     response_create_event = create_event_help(client, token, event_name, event_date, event_location, event_description)
@@ -67,7 +67,7 @@ def test_read_event(client):
     assert response_verify.status_code == 200
 
     event_name = random_string(10)
-    event_date = (datetime.now() + timedelta(days=1)).isoformat()
+    event_date = (datetime.now(UTC) + timedelta(days=1)).isoformat()
     event_location = random_string(10)
     event_description = random_string(20)
     response_create_event = create_event_help(client, token, event_name, event_date, event_location, event_description)
@@ -107,7 +107,7 @@ def test_list_events(client):
     assert response_verify.status_code == 200
 
     event_name = random_string(10)
-    event_date = (datetime.now() + timedelta(days=1)).isoformat()
+    event_date = (datetime.now(UTC) + timedelta(days=1)).isoformat()
     event_location = random_string(10)
     event_description = random_string(20)
     response_create_event = create_event_help(client, token, event_name, event_date, event_location, event_description)
@@ -144,7 +144,7 @@ def test_delete_event(client):
     assert response_verify.status_code == 200
 
     event_name = random_string(10)
-    event_date = (datetime.now() + timedelta(days=1)).isoformat()
+    event_date = (datetime.now(UTC) + timedelta(days=1)).isoformat()
     event_location = random_string(10)
     event_description = random_string(20)
     response_create_event = create_event_help(client, token, event_name, event_date, event_location, event_description)
@@ -177,7 +177,7 @@ def test_check_in_attendee(client):
     assert response_verify.status_code == 200
 
     event_name = random_string(10)
-    event_date = (datetime.now() + timedelta(days=1)).isoformat()
+    event_date = (datetime.now(UTC) + timedelta(days=1)).isoformat()
     event_location = random_string(10)
     event_description = random_string(20)
     response_create_event = create_event_help(client, token, event_name, event_date, event_location, event_description)
@@ -234,7 +234,7 @@ def test_check_in_log(client):
     assert response_verify.status_code == 200
 
     event_name = random_string(10)
-    event_date = (datetime.now() + timedelta(days=1)).isoformat()
+    event_date = (datetime.now(UTC) + timedelta(days=1)).isoformat()
     event_location = random_string(10)
     event_description = random_string(20)
     response_create_event = create_event_help(client, token, event_name, event_date, event_location, event_description)
@@ -285,7 +285,7 @@ def test_check_in_log(client):
 def test_add_staff(client):
     email = random_email()
     password = "password123"
-    user = create_user_help(client, random_string(10), email, password)
+    create_user_help(client, random_string(10), email, password)
 
     response_login = client.post(
         "/auth/login", data={"username": email, "password": password}
@@ -303,7 +303,7 @@ def test_add_staff(client):
     assert response_verify.status_code == 200
 
     event_name = random_string(10)
-    event_date = (datetime.now() + timedelta(days=1)).isoformat()
+    event_date = (datetime.now(UTC) + timedelta(days=1)).isoformat()
     event_location = random_string(10)
     event_description = random_string(20)
     response_create_event = create_event_help(client, token, event_name, event_date, event_location, event_description)
