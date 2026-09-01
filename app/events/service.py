@@ -69,22 +69,22 @@ def create_event(
 
 @router.post(
     "/{event_id}/addstaff/{user_id}",
-    response_model=Event,
+    response_model=EventResponse,
     status_code=status.HTTP_200_OK,
 )
 async def add_staff(
     user_id: UUID,
     event_id: UUID,
     session: Session = Depends(get_session),
-    current_user: User = Depends(require_role(EventRole.admin)),
+    current_user: User = Depends(require_event_role(EventRole.admin)),
     require_verified: User = Depends(get_verified_user),
 ):
-    event = session.get(Event, event_id)
+    event = session.exec(select(Event).where(Event.id == event_id)).first()
     if event is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Event not found"
         )
-    staff = session.get(User, user_id)
+    staff = session.exec(select(User).where(User.id == user_id)).first()
     if staff is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
