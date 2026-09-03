@@ -1,3 +1,4 @@
+from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
@@ -35,3 +36,9 @@ def client():
 
     SQLModel.metadata.drop_all(test_engine)
     test_engine.dispose()
+
+@pytest.fixture(autouse=True)
+def mock_email_sender():
+    # adjust import path to where FastMail is used in your app
+    with patch("app.users.service.FastMail.send_message", new_callable=AsyncMock) as mocked:
+        yield mocked
