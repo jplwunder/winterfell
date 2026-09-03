@@ -40,5 +40,5 @@ def client():
 @pytest.fixture(autouse=True)
 def mock_email_sender():
     # adjust import path to where FastMail is used in your app
-    with patch("app.users.service.FastMail.send_message", new_callable=AsyncMock) as mocked:
+    with patch("app.core.auth.mail.send_message", new_callable=AsyncMock) as mocked:
         yield mocked
