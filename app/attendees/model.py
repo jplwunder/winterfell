@@ -25,9 +25,7 @@ class Ticket(SQLModel, table=True):
         back_populates="ticket",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
-    role: EventRole = Field(
-        default=EventRole.attendee, index=True
-    )
+    role: EventRole = Field(default=EventRole.attendee, index=True)
 
 
 class CheckInLog(SQLModel, table=True):

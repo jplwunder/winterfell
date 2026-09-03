@@ -34,7 +34,9 @@ router = APIRouter(prefix="/attendees", tags=["attendees"])
 def list_organizers(
     event_id: UUID,
     session: Annotated[Session, Depends(get_session)],
-    current_user: Annotated[User, Depends(require_event_role(EventRole.admin, EventRole.staff))],
+    current_user: Annotated[
+        User, Depends(require_event_role(EventRole.admin, EventRole.staff))
+    ],
     require_verified: Annotated[User, Depends(get_verified_user)],
 ):
     statement = (

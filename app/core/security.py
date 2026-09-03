@@ -77,6 +77,7 @@ def get_event_id_from_ticket_code(
 
     return ticket.event_id
 
+
 def get_verified_user(current_user: Annotated[User, Depends(get_current_user)]) -> User:
     if not current_user.is_verified:
         raise HTTPException(

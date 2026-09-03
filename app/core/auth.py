@@ -70,7 +70,9 @@ async def me(
 
 
 @router.post("/send-verification-code/{email}", status_code=status.HTTP_200_OK)
-async def send_verification_code(email: str, session: Annotated[Session, Depends(get_session)]):
+async def send_verification_code(
+    email: str, session: Annotated[Session, Depends(get_session)]
+):
     user = session.exec(select(User).where(User.email == email)).first()
     if not user:
         raise HTTPException(

@@ -86,11 +86,13 @@ def read_user_by_email(
 
 
 @router.get("/{user_id}", response_model=UserPublic, status_code=status.HTTP_200_OK)
-def read_user(user_id: UUID, session: Annotated[Session, Depends(get_session)], current_user: Annotated[User, Depends(get_current_user)], require_verified: Annotated[User, Depends(get_verified_user)]):
+def read_user(
+    user_id: UUID,
+    session: Annotated[Session, Depends(get_session)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    require_verified: Annotated[User, Depends(get_verified_user)],
+):
     user = session.get(User, user_id)
     if user is None:
-        raise HTTPException(
-            status_code=404,
-            detail="User not found"
-        )
+        raise HTTPException(status_code=404, detail="User not found")
     return {"email": user.email, "name": user.name, "id": user.id}

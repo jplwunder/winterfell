@@ -16,12 +16,13 @@ def test_login(client):
     # First, create a user
     create_user_help(client, random_string(10), email, password)
 
-    response = client.post("/auth/login", data={"username": email, "password": password})
+    response = client.post(
+        "/auth/login", data={"username": email, "password": password}
+    )
 
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
-
 
 
 def test_invalid_login(client):
@@ -29,11 +30,14 @@ def test_invalid_login(client):
     email = "".join(random.choices(string.ascii_lowercase, k=10)) + "@example.com"
     password = "password123"
 
-    response = client.post("/auth/login", data={"username": email, "password": password})
+    response = client.post(
+        "/auth/login", data={"username": email, "password": password}
+    )
 
     assert response.status_code == 404
     data = response.json()
     assert "access_token" not in data
+
 
 def test_login_with_wrong_password(client):
 
@@ -86,9 +90,7 @@ def test_me(client):
     response_verify = verify_code_help(client, email, verification_code)
     assert response_verify.status_code == 200
 
-    response_me = client.get(
-        "/auth/me", headers={"Authorization": f"Bearer {token}"}
-    )
+    response_me = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
 
     assert response_me.status_code == 200
     assert response_me.json()["email"] == email
@@ -96,7 +98,9 @@ def test_me(client):
 
 def test_me_with_invalid_token(client):
 
-    response_me = client.get("/auth/me", headers={"Authorization": "Bearer invalidtoken"})
+    response_me = client.get(
+        "/auth/me", headers={"Authorization": "Bearer invalidtoken"}
+    )
     assert response_me.status_code == 401
     assert response_me.json()["detail"] == "Invalid token"
 
@@ -113,13 +117,16 @@ def test_me_with_expired_token(client):
 
     expired_token = jwt.encode(expired_payload, SECRET_KEY, algorithm=ALGORITHM)
 
-    response = client.get("/auth/me", headers={"Authorization": f"Bearer {expired_token}"})
+    response = client.get(
+        "/auth/me", headers={"Authorization": f"Bearer {expired_token}"}
+    )
 
     assert response.status_code == 401
 
     data = response.json()
 
     assert data["detail"] == "Token has expired"
+
 
 def test_auth_with_missing_token(client):
 

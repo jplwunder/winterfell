@@ -1,4 +1,3 @@
-
 from datetime import UTC, datetime, timedelta
 
 from tests.helper import (
@@ -35,16 +34,19 @@ def test_list_organizers(client):
     event_date = (datetime.now(UTC) + timedelta(days=1)).isoformat()
     event_location = random_string(10)
     event_description = random_string(20)
-    response_create_event = create_event_help(client, token, event_name, event_date, event_location, event_description)
+    response_create_event = create_event_help(
+        client, token, event_name, event_date, event_location, event_description
+    )
 
     response_organizers = client.get(
         f"/attendees/organizers/{response_create_event['id']}",
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
 
     assert response_organizers.status_code == 200
     data_organizers = response_organizers.json()
     assert "users" in data_organizers
+
 
 def test_list_participants(client):
     email = random_email()
@@ -70,16 +72,19 @@ def test_list_participants(client):
     event_date = (datetime.now(UTC) + timedelta(days=1)).isoformat()
     event_location = random_string(10)
     event_description = random_string(20)
-    response_create_event = create_event_help(client, token, event_name, event_date, event_location, event_description)
+    response_create_event = create_event_help(
+        client, token, event_name, event_date, event_location, event_description
+    )
 
     response_participants = client.get(
         f"/attendees/participants/{response_create_event['id']}",
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
 
     assert response_participants.status_code == 200
     data_participants = response_participants.json()
     assert "tickets" in data_participants
+
 
 def test_create_ticket(client):
     email = random_email()
@@ -105,26 +110,28 @@ def test_create_ticket(client):
     event_date = (datetime.now(UTC) + timedelta(days=1)).isoformat()
     event_location = random_string(10)
     event_description = random_string(20)
-    response_create_event = create_event_help(client, token, event_name, event_date, event_location, event_description)
+    response_create_event = create_event_help(
+        client, token, event_name, event_date, event_location, event_description
+    )
 
     email2 = random_email()
     create_user_help(client, random_string(10), email2, password)
     response_login2 = client.post(
         "/auth/login", data={"username": email2, "password": password}
     )
-    
+
     assert response_login2.status_code == 200
     data_login2 = response_login2.json()
     token2 = data_login2["access_token"]
-    
+
     verification_code2 = me_help(client, token2)
-    
+
     assert verification_code2 is not None
-    
+
     response_verify2 = verify_code_help(client, email2, verification_code2)
     assert response_verify2.status_code == 200
 
-    response_create_ticket = ticket_help(client, token2, response_create_event['id'])
+    response_create_ticket = ticket_help(client, token2, response_create_event["id"])
 
     assert response_create_ticket.status_code == 200
     data_create_ticket = response_create_ticket.json()
