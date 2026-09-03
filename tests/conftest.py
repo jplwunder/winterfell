@@ -38,6 +38,7 @@ def client():
     SQLModel.metadata.drop_all(test_engine)
     test_engine.dispose()
 
+
 @pytest.fixture(autouse=True)
 def mock_email_sender():
     # adjust import path to where FastMail is used in your app
