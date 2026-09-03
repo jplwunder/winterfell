@@ -52,6 +52,8 @@ jobs:
         run: uv sync --frozen
 
       - name: Run tests with coverage
+        env:
+          SECRET_KEY: a1a2c6c6a281655a9aa4bd918ae10362b4b5719a8ae4185438e6ff2161020845
         run: >
           uv run pytest
           --cov=app
