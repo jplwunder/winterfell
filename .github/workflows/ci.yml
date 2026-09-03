@@ -53,6 +53,11 @@ jobs:
 
       - name: Run tests with coverage
         env:
+          MAIL_FROM: "noreply@example.com"
+          MAIL_FROM_NAME: "Winterfell"
+          MAIL_USERNAME: "noreply@example.com"
+          MAIL_PASSWORD: "password"
+          MAIL_PORT: "587"
           MAIL_SERVER: "smtp.gmail.com"
         run: >
           uv run pytest
