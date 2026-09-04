@@ -5,14 +5,14 @@ from uuid import UUID
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from itsdangerous import URLSafeTimedSerializer
 from sqlmodel import Session, select
-from uvicorn import logging
+
+from app.attendees.model import Ticket
 from app.core.config import ALGORITHM, SECRET_KEY
 from app.core.database import get_session
 from app.core.roles import EventRole
 from app.users.model import User
-from app.attendees.model import Ticket
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 email_salt = "email-confirmation"
@@ -64,7 +64,7 @@ def get_current_user(
 
 
 def get_event_id_from_ticket_code(
-    ticket_code: str, session: Session = Depends(get_session)
+    ticket_code: str, session: Annotated[Session, Depends(get_session)]
 ) -> UUID:
     ticket = session.exec(
         select(Ticket).where(Ticket.ticket_code == ticket_code)
@@ -78,7 +78,7 @@ def get_event_id_from_ticket_code(
     return ticket.event_id
 
 
-def get_verified_user(current_user: User = Depends(get_current_user)) -> User:
+def get_verified_user(current_user: Annotated[User, Depends(get_current_user)]) -> User:
     if not current_user.is_verified:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -89,8 +89,8 @@ def get_verified_user(current_user: User = Depends(get_current_user)) -> User:
 
 def require_role(*allowed_roles: EventRole):
     def role_checker(
-        current_user: User = Depends(get_current_user),
-        event_id: UUID = Depends(get_event_id_from_ticket_code),
+        current_user: Annotated[User, Depends(get_current_user)],
+        event_id: Annotated[UUID, Depends(get_event_id_from_ticket_code)],
     ) -> User:
         if current_user.get_role(event_id) not in allowed_roles:
             raise HTTPException(
@@ -105,7 +105,7 @@ def require_role(*allowed_roles: EventRole):
 def require_event_role(*allowed_roles: EventRole):
     def role_checker(
         event_id: UUID,
-        current_user: User = Depends(get_current_user),
+        current_user: Annotated[User, Depends(get_current_user)],
     ) -> User:
         if current_user.get_role(event_id) not in allowed_roles:
             raise HTTPException(

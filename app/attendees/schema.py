@@ -3,7 +3,7 @@ from uuid import UUID
 
 from sqlmodel import SQLModel
 
-from app.attendees.model import CheckInLog, Ticket
+from app.attendees.model import Ticket
 
 
 class CheckInLogResponse(SQLModel):
@@ -20,17 +20,18 @@ class CheckInResponse(SQLModel):
 
 
 class CheckInLogList(SQLModel):
-    logs: list[CheckInLogResponse]
+    check_in_logs: list[CheckInLogResponse]
 
 
 class TicketCreate(SQLModel):
-    attendee_id: UUID
+    attendee_id: UUID | None = None
     event_id: UUID
 
 
 class TicketResponse(SQLModel):
     message: str
     ticket: Ticket
+    check_in_log: CheckInLogResponse | None = None
 
 
 class TicketList(SQLModel):

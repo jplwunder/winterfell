@@ -1,3 +1,8 @@
+from unittest.mock import AsyncMock, patch
+
+from app.email.service import create_user_verification_code
+
+
 def random_string(length=10):
     import random
     import string
@@ -9,47 +14,78 @@ def random_email():
     return random_string(10) + "@example.com"
 
 
-def create_user_test(client, name, email, age, password):
-    response = client.post(
-        "/users", json={"name": name, "email": email, "age": age, "password": password}
-    )
+def create_user_help(client, name, email, password):
+    payload = {
+        "name": name,
+        "email": email,
+        "password": password,
+    }
+
+    with patch("app.core.auth.mail.send_message", new_callable=AsyncMock):
+        response = client.post("/users", json=payload)
+
     assert response.status_code == 201
-    return response.json()["user"]
+
+    data = response.json()
+
+    assert data["message"] == (
+        "User created successfully. Waiting for e-mail confirmation."
+    )
+
+    assert data["user"]["email"] == email
+    assert data["user"]["name"] == name
+
+    assert "password" not in data["user"]
+    return data["user"]
 
 
-def create_customer_test(client, token, name, email, age, password, address):
+def create_event_help(client, token, name, date, location, description):
     response = client.post(
-        "/customers/",
+        "/events/",
         headers={"Authorization": f"Bearer {token}"},
         json={
             "name": name,
-            "email": email,
-            "age": age,
-            "password": password,
-            "address": address,
+            "date": date,
+            "location": location,
+            "description": description,
         },
     )
     assert response.status_code == 201
-    return response.json()["customer"]
+    return response.json()["event"]
 
 
-def create_order_test(client, token, customer_id, description):
+def me_help(client, token):
+    captured_code = None
+
+    def capture_verification_code(email, session):
+        nonlocal captured_code
+        captured_code = create_user_verification_code(email, session)
+        return captured_code
+
+    with (
+        patch(
+            "app.core.auth.create_user_verification_code",
+            side_effect=capture_verification_code,
+        ),
+        patch("app.core.auth.mail.send_message", new_callable=AsyncMock),
+    ):
+        response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    return response, captured_code
+
+
+def ticket_help(client, token, event_id):
+    with patch("app.attendees.service.mail.send_message", new_callable=AsyncMock):
+        response = client.post(
+            "/attendees/tickets",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"event_id": event_id},
+        )
+    return response
+
+
+def verify_code_help(client, email, code):
     response = client.post(
-        "/orders/",
-        headers={"Authorization": f"Bearer {token}"},
-        json={"customer_id": customer_id, "description": description},
+        "/auth/verify-code",
+        json={"email": email, "code": str(code)},
     )
-    assert response.status_code == 201
-    return response.json()["order"]
-
-
-def get_auth_token(client):
-    user = create_user_test(
-        client, random_string(10), random_email(), 18, "password123"
-    )
-
-    login = client.post(
-        "/login", data={"username": user["email"], "password": "password123"}
-    )
-
-    return login.json()["access_token"]
+    return response
