@@ -334,3 +334,74 @@ def generate_staff_added_email(
   </table>
 </body>
 </html>"""
+
+def generate_password_reset_email(link: str) -> str:
+    return f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Redefinição de Senha</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f8fafc; padding: 40px 10px;">
+    <tr>
+      <td align="center">
+        <!-- Container Principal -->
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 460px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+          
+          <!-- Ícone Superior -->
+          <tr>
+            <td align="center" style="padding: 36px 32px 12px 32px;">
+              <div style="display: inline-block; width: 48px; height: 48px; line-height: 48px; background-color: #eff6ff; border-radius: 12px; font-size: 22px;">
+                🔒
+              </div>
+            </td>
+          </tr>
+
+          <!-- Conteúdo -->
+          <tr>
+            <td align="center" style="padding: 0 32px 36px 32px;">
+              <h1 style="color: #0f172a; font-size: 20px; font-weight: 700; margin: 0 0 12px 0; text-align: center;">
+                Redefinição de Senha
+              </h1>
+              
+              <p style="color: #64748b; font-size: 14px; line-height: 1.6; margin: 0 0 28px 0; text-align: center;">
+                Recebemos uma solicitação para redefinir a senha da sua conta. Clique no botão abaixo para escolher uma nova senha:
+              </p>
+
+              <!-- Botão de Ação -->
+              <table border="0" cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                <tr>
+                  <td align="center" bgcolor="#2563eb" style="border-radius: 8px;">
+                    <a href="{link}" target="_blank" style="display: inline-block; padding: 12px 28px; font-size: 14px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px; background-color: #2563eb;">
+                      Redefinir Minha Senha
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divisor -->
+              <div style="border-top: 1px solid #f1f5f9; margin: 28px 0 20px 0;"></div>
+
+              <p style="color: #94a3b8; font-size: 12px; line-height: 1.5; margin: 0; text-align: center;">
+                Este link expira em 30 minutos. Se você não solicitou a alteração de senha, ignore este e-mail e sua conta permanecerá segura.
+              </p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Rodapé fora do card -->
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 460px; margin-top: 20px;">
+          <tr>
+            <td align="center" style="color: #94a3b8; font-size: 12px;">
+              <p style="margin: 0;">Eventos Hub &bull; Todos os direitos reservados</p>
+            </td>
+          </tr>
+        </table>
+
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
