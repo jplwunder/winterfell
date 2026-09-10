@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import Session, select
 
-from app.core.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
+from app.core.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, DOMAIN, SECRET_KEY
 from app.core.database import get_session
 from app.core.security import (
     get_current_user,
@@ -125,11 +125,11 @@ async def verify_code(
 
 def create_password_change_request(user: User, session: Session) -> str:
     # Invalidate any previous unused requests for this user
-    session.exec(
+    old_requests = session.exec(
         select(PasswordChangeRequest)
         .where(PasswordChangeRequest.user_id == user.id, PasswordChangeRequest.used == False)
     ).all()
-    for old in _:
+    for old in old_requests:
         old.used = True
         session.add(old)
 
@@ -143,12 +143,19 @@ def create_password_change_request(user: User, session: Session) -> str:
     session.commit()
     return code  # raw value goes in the email, hash stays in DB
 
-@router.post("/forgot_password", status_code=status.HTTP_200_OK)
-async def forgot_password( payload: ForgotPasswordRequest, session: Annotated[Session, Depends(get_session)]):
+@router.post("/forgot-password", status_code=status.HTTP_200_OK)
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    session: Annotated[Session, Depends(get_session)],
+):
     user = session.exec(select(User).where(User.email == payload.email)).first()
     if user:
         code = create_password_change_request(user, session)
-        html_message = generate_password_reset_email(code)
+        reset_base_url = DOMAIN or "http://localhost:5173"
+        if not reset_base_url.startswith(("http://", "https://")):
+            reset_base_url = f"http://{reset_base_url}"
+        reset_link = f"{reset_base_url.rstrip('/')}/reset-password?token={code}"
+        html_message = generate_password_reset_email(reset_link)
         message = create_message(
             reciepients=[user.email], subject="Password Reset Request", body=html_message
         )

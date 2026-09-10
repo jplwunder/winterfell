@@ -134,3 +134,18 @@ def test_auth_with_missing_token(client):
     assert response_me.status_code == 401
     data_me = response_me.json()
     assert data_me["detail"] == "Not authenticated"
+
+
+def test_forgot_password(client, mock_email_sender):
+    email = "forgot@example.com"
+    create_user_help(client, random_string(10), email, "password123")
+
+    response = client.post("/auth/forgot-password", json={"email": email})
+
+    assert response.status_code == 200
+    assert response.json()["message"] == (
+        "If the email exists, a password reset link has been sent."
+    )
+    mock_email_sender.assert_awaited_once()
+    message = mock_email_sender.await_args.args[0]
+    assert 'href="http://localhost:5173/reset-password?token=' in message.body
