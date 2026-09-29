@@ -141,6 +141,7 @@ def create_password_change_request(user: User, session: Session) -> str:
     hashed_token = hashlib.sha256(token.encode()).hexdigest()
     request = PasswordChangeRequest(
         user_id=user.id,
+        email=user.email,
         token=hashed_token,       # store hashed, return raw code to the caller
         expires_at=datetime.now(UTC) + timedelta(minutes=5),
     )
@@ -150,40 +151,46 @@ def create_password_change_request(user: User, session: Session) -> str:
 
 @router.post("/reset_password", status_code=status.HTTP_200_OK)
 async def reset_password(
-    payload: ResetPasswordRequest, session: Annotated[Session, Depends(get_session)],
+    payload: ResetPasswordRequest,
+    session: Annotated[Session, Depends(get_session)],
 ):
-    user = session.exec(select(User).where(User.email == payload.email)).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
+    hashed_token = hashlib.sha256(payload.token.encode()).hexdigest()
     request = session.exec(
         select(PasswordChangeRequest)
         .where(
-            PasswordChangeRequest.user_id == user.id,
-            PasswordChangeRequest.token == hashlib.sha256(payload.token.encode()).hexdigest(),
+            PasswordChangeRequest.token == hashed_token,
             PasswordChangeRequest.used == False,
-            PasswordChangeRequest.expires_at > datetime.now(UTC),
         )
     ).first()
     if not request:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, 
-            detail="Invalid code"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid code",
         )
     if request.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
         request.used = True
         session.add(request)
         session.commit()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Code has expired"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Code has expired",
         )
-    hashed_password = hashlib.sha256(payload.new_password.encode()).hexdigest()
-    user.password = hashed_password
+    user = session.get(User, request.user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    user.password = hashlib.sha256(
+        payload.new_password.encode()
+    ).hexdigest()
+
     request.used = True
+
     session.add(user)
     session.add(request)
     session.commit()
+
     return {"message": "Password reset successfully."}
 
 

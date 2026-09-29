@@ -17,6 +17,7 @@ class TokenData(SQLModel):
 class PasswordChangeRequest(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(foreign_key="user.id")
+    email: EmailStr = Field(foreign_key="user.email")
     token: str = Field(index=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     expires_at: datetime
