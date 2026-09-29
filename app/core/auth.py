@@ -2,6 +2,7 @@ import hashlib
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from urllib.parse import unquote
+from uuid import uuid4
 
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -13,7 +14,11 @@ from app.core.database import get_session
 from app.core.security import (
     get_current_user,
 )
-from app.core.token import ForgotPasswordRequest, PasswordChangeRequest, ResetPasswordRequest
+from app.core.token import (
+    ForgotPasswordRequest,
+    PasswordChangeRequest,
+    ResetPasswordRequest,
+)
 from app.email.model import UserVerificationCode
 from app.email.schema import VerifyCodeSchema
 from app.email.service import (
@@ -124,7 +129,6 @@ async def verify_code(
     return {"message": "Code verified successfully."}
 
 def create_password_change_request(user: User, session: Session) -> str:
-    # Invalidate any previous unused requests for this user
     old_requests = session.exec(
         select(PasswordChangeRequest)
         .where(PasswordChangeRequest.user_id == user.id, PasswordChangeRequest.used == False)
@@ -133,34 +137,16 @@ def create_password_change_request(user: User, session: Session) -> str:
         old.used = True
         session.add(old)
 
-    code = create_user_verification_code(user.email, session)   # random, e.g. 6-digit or urlsafe token depending on your UX
+    token = str(uuid4())
+    hashed_token = hashlib.sha256(token.encode()).hexdigest()
     request = PasswordChangeRequest(
         user_id=user.id,
-        code=code,       # store hashed, return raw code to the caller
-        expires_at=datetime.now(UTC) + timedelta(minutes=30),
+        token=hashed_token,       # store hashed, return raw code to the caller
+        expires_at=datetime.now(UTC) + timedelta(minutes=5),
     )
     session.add(request)
     session.commit()
-    return code  # raw value goes in the email, hash stays in DB
-
-@router.post("/forgot-password", status_code=status.HTTP_200_OK)
-async def forgot_password(
-    payload: ForgotPasswordRequest,
-    session: Annotated[Session, Depends(get_session)],
-):
-    user = session.exec(select(User).where(User.email == payload.email)).first()
-    if user:
-        code = create_password_change_request(user, session)
-        reset_base_url = DOMAIN or "http://localhost:5173"
-        if not reset_base_url.startswith(("http://", "https://")):
-            reset_base_url = f"http://{reset_base_url}"
-        reset_link = f"{reset_base_url.rstrip('/')}/reset-password?token={code}"
-        html_message = generate_password_reset_email(reset_link)
-        message = create_message(
-            reciepients=[user.email], subject="Password Reset Request", body=html_message
-        )
-        await mail.send_message(message)
-    return {"message": "If the email exists, a password reset link has been sent."}
+    return token
 
 @router.post("/reset_password", status_code=status.HTTP_200_OK)
 async def reset_password(
@@ -175,14 +161,15 @@ async def reset_password(
         select(PasswordChangeRequest)
         .where(
             PasswordChangeRequest.user_id == user.id,
-            PasswordChangeRequest.code == payload.code,
+            PasswordChangeRequest.token == hashlib.sha256(payload.token.encode()).hexdigest(),
             PasswordChangeRequest.used == False,
             PasswordChangeRequest.expires_at > datetime.now(UTC),
         )
     ).first()
     if not request:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid code"
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Invalid code"
         )
     if request.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
         request.used = True
@@ -198,3 +185,23 @@ async def reset_password(
     session.add(request)
     session.commit()
     return {"message": "Password reset successfully."}
+
+
+@router.post("/forgot_password_email", status_code=status.HTTP_200_OK)
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    session: Annotated[Session, Depends(get_session)],
+):
+    user = session.exec(select(User).where(User.email == payload.email)).first()
+    if user:
+        token = create_password_change_request(user, session)
+        reset_base_url = DOMAIN
+        if not reset_base_url.startswith(("http://", "https://")):
+            reset_base_url = f"http://{reset_base_url}"
+        reset_link = f"{reset_base_url.rstrip('/')}/reset-password?token={token}"
+        html_message = generate_password_reset_email(reset_link)
+        message = create_message(
+            reciepients=[user.email], subject="Password Reset Request", body=html_message
+        )
+        await mail.send_message(message)
+    return {"message": "If the email exists, a password reset link has been sent."}
