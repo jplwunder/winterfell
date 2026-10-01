@@ -1,4 +1,5 @@
 from unittest.mock import AsyncMock, patch
+from urllib.parse import parse_qs, urlparse
 
 from app.email.service import create_user_verification_code
 
@@ -89,3 +90,16 @@ def verify_code_help(client, email, code):
         json={"email": email, "code": str(code)},
     )
     return response
+
+def password_change_request_help(client, email, mock_email_sender):
+    response = client.post(
+        "/auth/forgot_password",
+        json={"email": email},
+    )
+
+    message = mock_email_sender.await_args.args[0]
+
+    reset_link = message.body.split('href="')[1].split('"')[0]
+    token = parse_qs(urlparse(reset_link).query)["token"][0]
+
+    return response, token

@@ -5,7 +5,13 @@ from datetime import UTC, datetime, timedelta
 import jwt
 
 from app.core.config import ALGORITHM, SECRET_KEY
-from tests.helper import create_user_help, me_help, random_string, verify_code_help
+from tests.helper import (
+    create_user_help,
+    me_help,
+    password_change_request_help,
+    random_string,
+    verify_code_help,
+)
 
 
 def test_login(client):
@@ -135,12 +141,11 @@ def test_auth_with_missing_token(client):
     data_me = response_me.json()
     assert data_me["detail"] == "Not authenticated"
 
-
-def test_forgot_password(client, mock_email_sender):
+def test_forgot_password_email(client, mock_email_sender):
     email = "forgot@example.com"
     create_user_help(client, random_string(10), email, "password123")
 
-    response = client.post("/auth/forgot-password", json={"email": email})
+    response = client.post("/auth/forgot_password", json={"email": email})
 
     assert response.status_code == 200
     assert response.json()["message"] == (
@@ -149,3 +154,32 @@ def test_forgot_password(client, mock_email_sender):
     mock_email_sender.assert_awaited_once()
     message = mock_email_sender.await_args.args[0]
     assert 'href="http://localhost:5173/reset-password?token=' in message.body
+
+def test_new_password(client, mock_email_sender):
+    email = "newpassword@gmail.com"
+
+    create_user_help(
+        client,
+        random_string(10),
+        email,
+        "password123",
+    )
+
+    response, token = password_change_request_help(
+        client,
+        email,
+        mock_email_sender,
+    )
+
+    assert response.status_code == 200
+
+    response = client.post(
+        "/auth/new_password",
+        json={
+            "token": token,
+            "new_password": "newpassword123",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["message"] == "Password reset successfully."

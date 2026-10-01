@@ -142,15 +142,15 @@ def create_password_change_request(user: User, session: Session) -> str:
     request = PasswordChangeRequest(
         user_id=user.id,
         email=user.email,
-        token=hashed_token,       # store hashed, return raw code to the caller
+        token=hashed_token,
         expires_at=datetime.now(UTC) + timedelta(minutes=5),
     )
     session.add(request)
     session.commit()
     return token
 
-@router.post("/reset_password", status_code=status.HTTP_200_OK)
-async def reset_password(
+@router.post("/new_password", status_code=status.HTTP_200_OK)
+async def new_password(
     payload: ResetPasswordRequest,
     session: Annotated[Session, Depends(get_session)],
 ):
@@ -165,7 +165,7 @@ async def reset_password(
     if not request:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid code",
+            detail="Invalid token",
         )
     if request.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
         request.used = True
@@ -173,7 +173,7 @@ async def reset_password(
         session.commit()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Code has expired",
+            detail="Token has expired",
         )
     user = session.get(User, request.user_id)
     if not user:
@@ -194,8 +194,8 @@ async def reset_password(
     return {"message": "Password reset successfully."}
 
 
-@router.post("/forgot_password_email", status_code=status.HTTP_200_OK)
-async def forgot_password(
+@router.post("/forgot_password", status_code=status.HTTP_200_OK)
+async def forgot_password_email(
     payload: ForgotPasswordRequest,
     session: Annotated[Session, Depends(get_session)],
 ):
