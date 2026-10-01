@@ -5,7 +5,6 @@ from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from app.attendees.model import Ticket
-    from app.events.model import EventMembership
 from app.core.roles import EventRole
 
 
@@ -14,7 +13,7 @@ class User(SQLModel, table=True):
     name: str = Field(index=True)
     email: str = Field(index=True)
     password: str | None = Field(default=None, index=True, nullable=True)
-    tickets: list["Ticket"] = Relationship(back_populates="attendee")
+    tickets: list[Ticket] = Relationship(back_populates="attendee")
     is_verified: bool = Field(default=False, index=True)
 
     def get_role(self, event_id: UUID) -> EventRole | None:

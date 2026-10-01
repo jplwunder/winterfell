@@ -39,7 +39,7 @@ touch .env
 
 Set these variables in your .env file
 ```env
-SECRET_KEY=your_secret_key_here
+SECRET_KEY=""
 MAIL_USERNAME = ""
 MAIL_PASSWORD = ""
 MAIL_FROM = ""
@@ -47,6 +47,9 @@ MAIL_PORT = "587"
 MAIL_SERVER = ""
 MAIL_FROM_NAME=""
 DOMAIN = ""
+TEST_MAIL_USERNAME = ""
+TEST_MAIL_PASSWORD = ""
+TEST_MAIL_FROM = ""
 ```
 
 You can generate a secure secret key using:
@@ -58,7 +61,7 @@ openssl rand -hex 32
 ### Run the Application
 
 ```bash
-uv run uvicorn app.main:app --reload
+uvicorn app.main:app --reload
 ```
 
 The `--reload` option automatically restarts the server whenever changes are detected.
@@ -128,5 +131,3 @@ Authorization: Bearer <token>
 2. Log in
 3. Receive a JWT token
 4. Include the token in protected API requests
-
-.

@@ -1,20 +1,11 @@
-from asyncio import events
-from datetime import datetime, timezone
-import hashlib
-from typing import Dict
+from datetime import UTC, datetime
+from typing import Annotated
 from uuid import UUID, uuid4
-from sqlalchemy.orm import aliased
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import aliased
 from sqlmodel import Session, select
 
-from app.core.database import get_session
-from app.core.roles import EventRole
-from app.core.security import get_current_user, require_event_role, get_verified_user
-from app.events.model import Event
-from app.events.schema import EventCreate, EventList, EventResponse, RoleUpdate
-from app.core.security import require_role
-from app.users.model import User
 from app.attendees.model import CheckInLog, Ticket
 from app.attendees.schema import (
     CheckInLogList,
@@ -22,8 +13,13 @@ from app.attendees.schema import (
     CheckInResponse,
     TicketResponse,
 )
+from app.core.database import get_session
+from app.core.roles import EventRole
+from app.core.security import get_current_user, get_verified_user, require_event_role
 from app.email.service import create_message, generate_staff_added_email, mail
-
+from app.events.model import Event
+from app.events.schema import EventCreate, EventList, EventResponse
+from app.users.model import User
 
 Attendee = aliased(User)
 Operator = aliased(User)
@@ -34,11 +30,19 @@ router = APIRouter(prefix="/events", tags=["events"])
 @router.post("/", response_model=EventResponse, status_code=status.HTTP_201_CREATED)
 def create_event(
     event: EventCreate,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
-    require_verified: User = Depends(get_verified_user),
+    session: Annotated[Session, Depends(get_session)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    require_verified: Annotated[User, Depends(get_verified_user)],
 ):
+    event_datetime = event.date
+    if event_datetime.tzinfo is None:
+        event_datetime = event_datetime.replace(tzinfo=UTC)
+    else:
+        event_datetime = event_datetime.astimezone(UTC)
+
     event = Event(id=uuid4(), **event.model_dump())
+    event.date = event_datetime
+
     existing_event = session.exec(
         select(Event).where(Event.id == event.id, Event.deleted == False)
     ).first()
@@ -46,7 +50,7 @@ def create_event(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Event already exists"
         )
-    if event.date.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+    if event.date < datetime.now(UTC):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Event date cannot be in the past",
@@ -60,7 +64,7 @@ def create_event(
         attendee_id=current_user.id,
         role=EventRole.admin,
         checked_in=True,
-        checked_in_at=datetime.now(timezone.utc),
+        checked_in_at=datetime.now(UTC),
     )
     session.add(owner_ticket)
     session.commit()
@@ -69,22 +73,22 @@ def create_event(
 
 @router.post(
     "/{event_id}/addstaff/{user_id}",
-    response_model=Event,
+    response_model=EventResponse,
     status_code=status.HTTP_200_OK,
 )
 async def add_staff(
     user_id: UUID,
     event_id: UUID,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(require_role(EventRole.admin)),
-    require_verified: User = Depends(get_verified_user),
+    session: Annotated[Session, Depends(get_session)],
+    current_user: Annotated[User, Depends(require_event_role(EventRole.admin))],
+    require_verified: Annotated[User, Depends(get_verified_user)],
 ):
-    event = session.get(Event, event_id)
+    event = session.exec(select(Event).where(Event.id == event_id)).first()
     if event is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Event not found"
         )
-    staff = session.get(User, user_id)
+    staff = session.exec(select(User).where(User.id == user_id)).first()
     if staff is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
@@ -126,8 +130,9 @@ async def add_staff(
 
 @router.get("/", response_model=EventList, status_code=status.HTTP_200_OK)
 def list_events(
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
+    session: Annotated[Session, Depends(get_session)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    require_verified: Annotated[User, Depends(get_verified_user)],
 ):
     statement = (
         select(Event, Ticket.role)
@@ -150,7 +155,12 @@ def list_events(
 
 
 @router.get("/{event_id}", response_model=Event, status_code=status.HTTP_200_OK)
-def read_event(event_id: UUID, session: Session = Depends(get_session)):
+def read_event(
+    event_id: UUID,
+    session: Annotated[Session, Depends(get_session)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    require_verified: Annotated[User, Depends(get_verified_user)],
+):
     event = session.get(Event, event_id)
     if event is None:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -158,14 +168,14 @@ def read_event(event_id: UUID, session: Session = Depends(get_session)):
 
 
 @router.post(
-    "/{event_id}", response_model=Dict[str, str], status_code=status.HTTP_200_OK
+    "/{event_id}", response_model=dict[str, str], status_code=status.HTTP_200_OK
 )
 def delete_event(
     event_id: UUID,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(get_current_user),
-    require_verified: User = Depends(get_verified_user),
-    admin_check: User = Depends(require_event_role(EventRole.admin)),
+    session: Annotated[Session, Depends(get_session)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    require_verified: Annotated[User, Depends(get_verified_user)],
+    admin_check: Annotated[User, Depends(require_event_role(EventRole.admin))],
 ):
     statement = (
         select(Event)
@@ -184,14 +194,14 @@ def delete_event(
 @router.post(
     "/{event_id}/check-in/{ticket_code}",
     response_model=CheckInResponse,
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_200_OK,
 )
 def check_in_attendee(
     event_id: UUID,
     ticket_code: str,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)),
-    require_verified: User = Depends(get_verified_user),
+    session: Annotated[Session, Depends(get_session)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    require_verified: Annotated[User, Depends(get_verified_user)],
 ):
     attendee = session.exec(
         select(Ticket).where(
@@ -204,6 +214,17 @@ def check_in_attendee(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Attendee not found"
         )
+
+    user_role = current_user.get_role(event_id)
+    if current_user.id != attendee.attendee_id and user_role not in (
+        EventRole.admin,
+        EventRole.staff,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to perform this action",
+        )
+
     if attendee.checked_in:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -211,7 +232,7 @@ def check_in_attendee(
             + attendee.checked_in_at.isoformat(),
         )
     attendee.checked_in = True
-    attendee.checked_in_at = datetime.now(timezone.utc)
+    attendee.checked_in_at = datetime.now(UTC)
 
     log = CheckInLog(id=uuid4(), ticket_id=attendee.id, checked_by=current_user.id)
     session.add(attendee)
@@ -238,9 +259,9 @@ def check_in_attendee(
 def cancel_ticket(
     event_id: UUID,
     ticket_code: str,
-    session: Session = Depends(get_session),
-    require_verified: User = Depends(get_verified_user),
-    current_user: User = Depends(get_current_user),
+    session: Annotated[Session, Depends(get_session)],
+    require_verified: Annotated[User, Depends(get_verified_user)],
+    current_user: Annotated[User, Depends(get_current_user)],
 ):
     ticket = session.exec(
         select(Ticket).where(
@@ -267,10 +288,16 @@ def cancel_ticket(
 )
 def get_check_in_logs(
     event_id: UUID,
-    session: Session = Depends(get_session),
-    current_user: User = Depends(require_role(EventRole.admin, EventRole.staff)),
-    require_verified: User = Depends(get_verified_user),
+    session: Annotated[Session, Depends(get_session)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    require_verified: Annotated[User, Depends(get_verified_user)],
 ):
+    if current_user.get_role(event_id) not in (EventRole.admin, EventRole.staff):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to perform this action",
+        )
+
     logs = session.exec(
         select(
             CheckInLog.id,
@@ -285,7 +312,7 @@ def get_check_in_logs(
         .where(Ticket.event_id == event_id)
     ).all()
     return CheckInLogList(
-        logs=[
+        check_in_logs=[
             CheckInLogResponse(
                 id=row.id,
                 ticket_code=row.ticket_code,
