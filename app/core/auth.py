@@ -1,29 +1,30 @@
 import hashlib
-from datetime import datetime, timedelta, timezone
-from random import random
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from urllib.parse import unquote
+from uuid import uuid4
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from itsdangerous import BadSignature, SignatureExpired
-from sentry_sdk import flush
 from sqlmodel import Session, select
 
-from app.core.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
+from app.core.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, DOMAIN, SECRET_KEY
 from app.core.database import get_session
 from app.core.security import (
-    decode_email_token,
     get_current_user,
-    get_verified_user,
-    oauth2_scheme,
+)
+from app.core.token import (
+    ForgotPasswordRequest,
+    PasswordChangeRequest,
+    ResetPasswordRequest,
 )
 from app.email.model import UserVerificationCode
-from app.email.schema import Email, VerifyCodeSchema
+from app.email.schema import VerifyCodeSchema
 from app.email.service import (
     create_message,
     create_user_verification_code,
+    generate_password_reset_email,
     generate_verification_code_email,
     mail,
 )
@@ -35,7 +36,7 @@ router = APIRouter(tags=["auth"], prefix="/auth")
 @router.post("/login")
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-    session: Session = Depends(get_session),
+    session: Annotated[Session, Depends(get_session)],
 ):
     statement = select(User).where(User.email == form_data.username)
 
@@ -52,7 +53,7 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Senha incorreta"
         )
-    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     payload = {"sub": str(user.id), "exp": expire}
 
@@ -66,17 +67,19 @@ async def me(
     user: Annotated[User, Depends(get_current_user)],
     session: Annotated[Session, Depends(get_session)],
 ):
-    if not session or user.is_verified is False:
+    if user.is_verified is False:
         await send_verification_code(user.email, session)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Conta de usuário não verificada. Verifique seu e-mail para o link de verificação",
+            detail="User is not verified. A verification code has been sent to your email.",
         )
     return {"id": str(user.id), "name": user.name, "email": user.email}
 
 
 @router.post("/send-verification-code/{email}", status_code=status.HTTP_200_OK)
-async def send_verification_code(email: str, session: Session = Depends(get_session)):
+async def send_verification_code(
+    email: str, session: Annotated[Session, Depends(get_session)]
+):
     user = session.exec(select(User).where(User.email == email)).first()
     if not user:
         raise HTTPException(
@@ -93,7 +96,7 @@ async def send_verification_code(email: str, session: Session = Depends(get_sess
 
 @router.post("/verify-code", status_code=status.HTTP_200_OK)
 async def verify_code(
-    payload: VerifyCodeSchema, session: Session = Depends(get_session)
+    payload: VerifyCodeSchema, session: Annotated[Session, Depends(get_session)]
 ):
     cleaned_email = unquote(payload.email)
     user = session.exec(
@@ -113,9 +116,7 @@ async def verify_code(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid code"
         )
-    if verification_code.expires_at.replace(tzinfo=timezone.utc) < datetime.now(
-        timezone.utc
-    ):
+    if verification_code.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
         session.delete(verification_code)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Code has expired"
@@ -126,3 +127,88 @@ async def verify_code(
     session.commit()
     session.refresh(user)
     return {"message": "Code verified successfully."}
+
+def create_password_change_request(user: User, session: Session) -> str:
+    old_requests = session.exec(
+        select(PasswordChangeRequest)
+        .where(PasswordChangeRequest.user_id == user.id, PasswordChangeRequest.used == False)
+    ).all()
+    for old in old_requests:
+        old.used = True
+        session.add(old)
+
+    token = str(uuid4())
+    hashed_token = hashlib.sha256(token.encode()).hexdigest()
+    request = PasswordChangeRequest(
+        user_id=user.id,
+        email=user.email,
+        token=hashed_token,
+        expires_at=datetime.now(UTC) + timedelta(minutes=5),
+    )
+    session.add(request)
+    session.commit()
+    return token
+
+@router.post("/new_password", status_code=status.HTTP_200_OK)
+async def new_password(
+    payload: ResetPasswordRequest,
+    session: Annotated[Session, Depends(get_session)],
+):
+    hashed_token = hashlib.sha256(payload.token.encode()).hexdigest()
+    request = session.exec(
+        select(PasswordChangeRequest)
+        .where(
+            PasswordChangeRequest.token == hashed_token,
+            PasswordChangeRequest.used == False,
+        )
+    ).first()
+    if not request:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid token",
+        )
+    if request.expires_at.replace(tzinfo=UTC) < datetime.now(UTC):
+        request.used = True
+        session.add(request)
+        session.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token has expired",
+        )
+    user = session.get(User, request.user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    user.password = hashlib.sha256(
+        payload.new_password.encode()
+    ).hexdigest()
+
+    request.used = True
+
+    session.add(user)
+    session.add(request)
+    session.commit()
+
+    return {"message": "Password reset successfully."}
+
+
+@router.post("/forgot_password", status_code=status.HTTP_200_OK)
+async def forgot_password_email(
+    payload: ForgotPasswordRequest,
+    session: Annotated[Session, Depends(get_session)],
+):
+    user = session.exec(select(User).where(User.email == payload.email)).first()
+    if user:
+        token = create_password_change_request(user, session)
+        reset_base_url = DOMAIN
+        if not reset_base_url.startswith(("http://", "https://")):
+            reset_base_url = f"http://{reset_base_url}"
+        reset_link = f"{reset_base_url.rstrip('/')}/reset-password?token={token}"
+        html_message = generate_password_reset_email(reset_link)
+        message = create_message(
+            reciepients=[user.email], subject="Password Reset Request", body=html_message
+        )
+        await mail.send_message(message)
+    return {"message": "If the email exists, a password reset link has been sent."}

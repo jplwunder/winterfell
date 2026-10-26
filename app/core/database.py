@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parents[2]
 sqlite_file_name = BASE_DIR / "database.sqlite"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 
@@ -12,9 +12,9 @@ engine = create_engine(sqlite_url, echo=True)
 
 
 def create_db_and_tables():
-    from app.users import model as user_model  # noqa: F401
-    from app.events import model as event_model  # noqa: F401
     from app.attendees import model as attendee_model  # noqa: F401
+    from app.events import model as event_model  # noqa: F401
+    from app.users import model as user_model  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
 
