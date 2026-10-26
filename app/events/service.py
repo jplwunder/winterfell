@@ -157,9 +157,7 @@ def list_events(
 @router.get("/{event_id}", response_model=Event, status_code=status.HTTP_200_OK)
 def read_event(
     event_id: UUID,
-    session: Annotated[Session, Depends(get_session)],
-    current_user: Annotated[User, Depends(get_current_user)],
-    require_verified: Annotated[User, Depends(get_verified_user)],
+    session: Annotated[Session, Depends(get_session)]
 ):
     event = session.get(Event, event_id)
     if event is None:

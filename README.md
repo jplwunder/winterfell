@@ -1,6 +1,6 @@
 # Winterfell
 
-Winterfell is an event management application built with **Python**, **FastAPI**, **SQLModel**, **SQLite**.
+Winterfell is an event management application built with **Python**, **FastAPI**, **SQLModel**, and **SQLite**.
 
 The project provides an API for managing users, events, tickets, event staff, attendee registration, authentication, and check-in operations.
 
@@ -10,16 +10,18 @@ The project provides an API for managing users, events, tickets, event staff, at
 
 ## Setup
 
+The project requires **Python 3.14 or newer**.
+
 Install `uv`:
 
-* MacOs / Linux
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+* macOS / Linux
+  ```bash
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  ```
 * Windows
-```bash
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
+  ```powershell
+  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+  ```
 
 Install the Python dependencies using `uv`:
 
@@ -31,26 +33,15 @@ The virtual environment is automatically managed by `uv`.
 
 ### Environment Variables
 
-Create a `.env` file
+Create a `.env` file from the example:
 
 ```bash
-touch .env
+cp .env.example .env
 ```
 
-Set these variables in your .env file
-```env
-SECRET_KEY=""
-MAIL_USERNAME = ""
-MAIL_PASSWORD = ""
-MAIL_FROM = ""
-MAIL_PORT = "587"
-MAIL_SERVER = ""
-MAIL_FROM_NAME=""
-DOMAIN = ""
-TEST_MAIL_USERNAME = ""
-TEST_MAIL_PASSWORD = ""
-TEST_MAIL_FROM = ""
-```
+Configure the SMTP variables in `.env` with a valid mail account. User registration
+and email verification send messages through this account. `DOMAIN` is used as the
+base URL when generating password reset links.
 
 You can generate a secure secret key using:
 
@@ -61,7 +52,7 @@ openssl rand -hex 32
 ### Run the Application
 
 ```bash
-uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload
 ```
 
 The `--reload` option automatically restarts the server whenever changes are detected.
@@ -74,12 +65,11 @@ http://127.0.0.1:8000
 
 ---
 
-
 ## API Documentation
 
 FastAPI automatically generates interactive API documentation.
 
-After starting the backend, open:
+After starting the application, open:
 
 ```text
 http://127.0.0.1:8000/docs
@@ -87,7 +77,7 @@ http://127.0.0.1:8000/docs
 
 ## Running Tests
 
-From the `backend` directory, run all tests:
+From the repository root, run all tests:
 
 ```bash
 uv run pytest
@@ -117,17 +107,16 @@ uv run pytest --cov
 
 The API uses JWT-based authentication.
 
-Protected routes require a valid Bearer Token.
+Log in at `/auth/login` using form data with the user's email as `username` and
+the account password. The response contains a JWT access token.
 
-Example:
-
-```http
-Authorization: Bearer <token>
-```
+For protected routes, include the returned token in the `Authorization` header
+using the standard OAuth2 password-bearer format.
 
 ### Authentication flow
 
-1. Create a user account
-2. Log in
-3. Receive a JWT token
-4. Include the token in protected API requests
+1. Create a user account with `POST /users`
+2. Verify the email using the code sent by email
+3. Log in with `POST /auth/login`
+4. Include the returned JWT in the `Authorization` header for protected API
+   requests
