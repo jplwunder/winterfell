@@ -60,7 +60,6 @@ jobs:
           MAIL_PASSWORD: "password"
           MAIL_PORT: "587"
           MAIL_SERVER: "smtp.gmail.com"
-          FRONTEND_URL: "http://localhost:5173"
         run: >
           uv run pytest
           --cov=app

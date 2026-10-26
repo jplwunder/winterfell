@@ -6,7 +6,6 @@ from app.users.model import User, UserPublic
 class UserCreate(SQLModel):
     name: str
     email: str
-    age: int | None = None
     password: str | None = None
 
 

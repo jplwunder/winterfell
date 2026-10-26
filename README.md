@@ -39,9 +39,20 @@ Create a `.env` file from the example:
 cp .env.example .env
 ```
 
-Configure the SMTP variables in `.env` with a valid mail account. User registration
-and email verification send messages through this account. `DOMAIN` is used as the
-base URL when generating password reset links.
+Set these variables in your .env file
+```env
+SECRET_KEY=""
+MAIL_USERNAME = ""
+MAIL_PASSWORD = ""
+MAIL_FROM = ""
+MAIL_PORT = "587"
+MAIL_SERVER = ""
+MAIL_FROM_NAME=""
+DOMAIN = ""
+TEST_MAIL_USERNAME = ""
+TEST_MAIL_PASSWORD = ""
+TEST_MAIL_FROM = ""
+```
 
 You can generate a secure secret key using:
 
@@ -52,7 +63,7 @@ openssl rand -hex 32
 ### Run the Application
 
 ```bash
-uv run uvicorn app.main:app --reload
+uvicorn app.main:app --reload
 ```
 
 The `--reload` option automatically restarts the server whenever changes are detected.
@@ -115,8 +126,7 @@ using the standard OAuth2 password-bearer format.
 
 ### Authentication flow
 
-1. Create a user account with `POST /users`
-2. Verify the email using the code sent by email
-3. Log in with `POST /auth/login`
-4. Include the returned JWT in the `Authorization` header for protected API
-   requests
+1. Create a user account
+2. Log in
+3. Receive a JWT token
+4. Include the token in protected API requests
