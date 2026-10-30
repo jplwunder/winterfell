@@ -16,6 +16,7 @@ class EventCreate(SQLModel):
     date: datetime
     location: str
     description: str | None = None
+    price: float
 
 
 class EventRead(SQLModel):
@@ -24,6 +25,7 @@ class EventRead(SQLModel):
     date: datetime
     location: str
     description: str | None = None
+    price: float
 
     @field_serializer("date")
     @staticmethod
@@ -39,6 +41,7 @@ class EventWithRole(SQLModel):
     date: datetime
     location: str
     description: str | None = None
+    price: float
     role: EventRole
 
     @field_serializer("date")

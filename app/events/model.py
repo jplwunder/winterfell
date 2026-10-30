@@ -21,6 +21,7 @@ class Event(SQLModel, table=True):
         back_populates="event", sa_relationship_kwargs={"cascade": "all, delete-orphan"}
     )
     deleted: bool = Field(default=False, index=True)
+    price: float = Field(index=True)
 
     @field_serializer("date")
     @staticmethod
