@@ -147,6 +147,7 @@ def list_events(
             "date": event.date,
             "location": event.location,
             "description": event.description,
+            "price": event.price,
             "role": role,
         }
         for event, role in results
