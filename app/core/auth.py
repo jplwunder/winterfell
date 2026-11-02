@@ -88,7 +88,7 @@ async def send_verification_code(
     code = create_user_verification_code(user.email, session)
     html_message = generate_verification_code_email(code)
     message = create_message(
-        reciepients=[user.email], subject="Código de Verificação", body=html_message
+        recipients=[user.email], subject="Código de Verificação", body=html_message
     )
     await mail.send_message(message)
     return {"message": "Verification code sent successfully."}
@@ -209,7 +209,7 @@ async def forgot_password_email(
         reset_link = f"{reset_base_url.rstrip('/')}/reset-password?token={token}"
         html_message = generate_password_reset_email(reset_link)
         message = create_message(
-            reciepients=[user.email],
+            recipients=[user.email],
             subject="Password Reset Request",
             body=html_message,
         )

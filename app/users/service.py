@@ -52,7 +52,7 @@ async def create_user(
     code = create_user_verification_code(user.email, session)
     html_message = generate_verification_code_email(code)
     message = create_message(
-        reciepients=[user.email],
+        recipients=[user.email],
         subject="[Dois ou Mais] Verifique o seu endereço de e-mail",
         body=html_message,
     )

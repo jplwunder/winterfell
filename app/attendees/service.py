@@ -30,14 +30,14 @@ router = APIRouter(prefix="/attendees", tags=["attendees"])
     "/organizers/{event_id}",
     response_model=ParticipantList,
     status_code=status.HTTP_200_OK,
+    dependencies=[
+        Depends(require_event_role(EventRole.admin, EventRole.staff)),
+        Depends(get_verified_user),
+    ],
 )
 def list_organizers(
     event_id: UUID,
     session: Annotated[Session, Depends(get_session)],
-    current_user: Annotated[
-        User, Depends(require_event_role(EventRole.admin, EventRole.staff))
-    ],
-    require_verified: Annotated[User, Depends(get_verified_user)],
 ):
     statement = (
         select(User, Ticket.role)
@@ -54,23 +54,24 @@ def list_organizers(
     "/participants/{event_id}",
     response_model=TicketList,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(get_verified_user)],
 )
 def list_participants(
     event_id: UUID,
     session: Annotated[Session, Depends(get_session)],
-    require_verified: Annotated[User, Depends(get_verified_user)],
 ):
     tickets = session.exec(select(Ticket).where(Ticket.event_id == event_id)).all()
 
     return TicketList(tickets=tickets)
 
 
-@router.post("/tickets", response_model=TicketResponse)
+@router.post(
+    "/tickets", response_model=TicketResponse, dependencies=[Depends(get_verified_user)]
+)
 async def create_ticket(
     ticket_payload: TicketCreate,
     session: Annotated[Session, Depends(get_session)],
     current_user: Annotated[User, Depends(get_current_user)],
-    require_verified: Annotated[User, Depends(get_verified_user)],
 ):
     event_id = ticket_payload.event_id
     event = session.get(Event, event_id)
@@ -107,7 +108,7 @@ async def create_ticket(
     )
 
     message = create_message(
-        reciepients=[attendee.email],
+        recipients=[attendee.email],
         subject=f"Your Ticket for {event.name}",
         body=html_message,
     )
