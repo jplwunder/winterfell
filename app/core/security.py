@@ -87,21 +87,6 @@ def get_verified_user(current_user: Annotated[User, Depends(get_current_user)]) 
     return current_user
 
 
-def require_role(*allowed_roles: EventRole):
-    def role_checker(
-        current_user: Annotated[User, Depends(get_current_user)],
-        event_id: Annotated[UUID, Depends(get_event_id_from_ticket_code)],
-    ) -> User:
-        if current_user.get_role(event_id) not in allowed_roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You do not have permission to perform this action",
-            )
-        return current_user
-
-    return role_checker
-
-
 def require_event_role(*allowed_roles: EventRole):
     def role_checker(
         event_id: UUID,

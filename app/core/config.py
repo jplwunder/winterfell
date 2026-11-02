@@ -7,4 +7,4 @@ load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-DOMAIN = os.getenv("DOMAIN")
+DOMAIN = os.getenv("DOMAIN", "localhost:5173")

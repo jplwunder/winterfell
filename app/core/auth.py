@@ -88,7 +88,7 @@ async def send_verification_code(
     code = create_user_verification_code(user.email, session)
     html_message = generate_verification_code_email(code)
     message = create_message(
-        reciepients=[user.email], subject="Código de Verificação", body=html_message
+        recipients=[user.email], subject="Código de Verificação", body=html_message
     )
     await mail.send_message(message)
     return {"message": "Verification code sent successfully."}
@@ -128,10 +128,13 @@ async def verify_code(
     session.refresh(user)
     return {"message": "Code verified successfully."}
 
+
 def create_password_change_request(user: User, session: Session) -> str:
     old_requests = session.exec(
-        select(PasswordChangeRequest)
-        .where(PasswordChangeRequest.user_id == user.id, PasswordChangeRequest.used == False)
+        select(PasswordChangeRequest).where(
+            PasswordChangeRequest.user_id == user.id,
+            PasswordChangeRequest.used == False,
+        )
     ).all()
     for old in old_requests:
         old.used = True
@@ -149,6 +152,7 @@ def create_password_change_request(user: User, session: Session) -> str:
     session.commit()
     return token
 
+
 @router.post("/new_password", status_code=status.HTTP_200_OK)
 async def new_password(
     payload: ResetPasswordRequest,
@@ -156,8 +160,7 @@ async def new_password(
 ):
     hashed_token = hashlib.sha256(payload.token.encode()).hexdigest()
     request = session.exec(
-        select(PasswordChangeRequest)
-        .where(
+        select(PasswordChangeRequest).where(
             PasswordChangeRequest.token == hashed_token,
             PasswordChangeRequest.used == False,
         )
@@ -181,9 +184,7 @@ async def new_password(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    user.password = hashlib.sha256(
-        payload.new_password.encode()
-    ).hexdigest()
+    user.password = hashlib.sha256(payload.new_password.encode()).hexdigest()
 
     request.used = True
 
@@ -208,7 +209,9 @@ async def forgot_password_email(
         reset_link = f"{reset_base_url.rstrip('/')}/reset-password?token={token}"
         html_message = generate_password_reset_email(reset_link)
         message = create_message(
-            reciepients=[user.email], subject="Password Reset Request", body=html_message
+            recipients=[user.email],
+            subject="Password Reset Request",
+            body=html_message,
         )
         await mail.send_message(message)
     return {"message": "If the email exists, a password reset link has been sent."}

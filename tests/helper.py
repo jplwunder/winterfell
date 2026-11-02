@@ -49,6 +49,7 @@ def create_event_help(client, token, name, date, location, description):
             "date": date,
             "location": location,
             "description": description,
+            "price": 0.0,
         },
     )
     assert response.status_code == 201
@@ -90,6 +91,7 @@ def verify_code_help(client, email, code):
         json={"email": email, "code": str(code)},
     )
     return response
+
 
 def password_change_request_help(client, email, mock_email_sender):
     response = client.post(

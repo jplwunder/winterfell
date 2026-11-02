@@ -4,6 +4,7 @@
 # Python
 __pycache__/
 .venv
+.DS_Store
 
 # Ruff
 .ruff_cache
@@ -18,3 +19,4 @@ __pycache__/
 coverage.xml
 /tests/.coverage
 /tests/coverage.xml
+/htmlcov

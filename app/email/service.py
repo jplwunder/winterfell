@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi import APIRouter
 from fastapi_mail import ConnectionConfig, FastMail, MessageSchema
+from pydantic import SecretStr
 from sqlmodel import Session
 
 from app.email.model import UserVerificationCode
@@ -15,26 +16,24 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 router = APIRouter(prefix="/email", tags=["email"])
 
 config = ConnectionConfig(
-    MAIL_USERNAME=os.getenv("MAIL_USERNAME"),
-    MAIL_PASSWORD=os.getenv("MAIL_PASSWORD"),
-    MAIL_FROM=os.getenv("MAIL_FROM"),
-    MAIL_PORT=os.getenv("MAIL_PORT"),
-    MAIL_SERVER=os.getenv("MAIL_SERVER"),
-    MAIL_FROM_NAME=os.getenv("MAIL_FROM_NAME"),
+    MAIL_USERNAME=os.environ["MAIL_USERNAME"],
+    MAIL_PASSWORD=SecretStr(os.environ["MAIL_PASSWORD"]),
+    MAIL_FROM=os.environ["MAIL_FROM"],
+    MAIL_PORT=int(os.environ["MAIL_PORT"]),
+    MAIL_SERVER=os.environ["MAIL_SERVER"],
+    MAIL_FROM_NAME=os.environ["MAIL_FROM_NAME"],
     MAIL_STARTTLS=True,
     MAIL_SSL_TLS=False,
     USE_CREDENTIALS=True,
     VALIDATE_CERTS=True,
-    TEMPLATE_FOLDER=Path(BASE_DIR, "templates"),
 )
 
 mail = FastMail(config=config)
 
 
-def create_message(reciepients: list[str], subject: str, body: str):
-
+def create_message(recipients: list[str], subject: str, body: str):
     message = MessageSchema(
-        recipients=reciepients, subject=subject, body=body, subtype="html"
+        recipients=recipients, subject=subject, body=body, subtype="html"
     )
     return message
 
@@ -47,6 +46,7 @@ def create_user_verification_code(email: str, session: Session) -> int:
     session.add(UserVerificationCode(email=email, code=code, expires_at=expires_at))
     session.commit()
     return code
+
 
 def generate_verification_code_email(code: int) -> str:
     return f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -334,6 +334,7 @@ def generate_staff_added_email(
 </body>
 </html>"""
 
+
 def generate_password_reset_email(link: str) -> str:
     return f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -348,7 +349,7 @@ def generate_password_reset_email(link: str) -> str:
       <td align="center">
         <!-- Container Principal -->
         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 460px; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-          
+
           <!-- Ícone Superior -->
           <tr>
             <td align="center" style="padding: 36px 32px 12px 32px;">
@@ -364,7 +365,7 @@ def generate_password_reset_email(link: str) -> str:
               <h1 style="color: #0f172a; font-size: 20px; font-weight: 700; margin: 0 0 12px 0; text-align: center;">
                 Redefinição de Senha
               </h1>
-              
+
               <p style="color: #64748b; font-size: 14px; line-height: 1.6; margin: 0 0 28px 0; text-align: center;">
                 Recebemos uma solicitação para redefinir a senha da sua conta. Clique no botão abaixo para escolher uma nova senha:
               </p>

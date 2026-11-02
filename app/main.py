@@ -15,6 +15,7 @@ async def lifespan(app: FastAPI):
     create_db_and_tables()
     yield
 
+
 app = FastAPI(lifespan=lifespan, swagger_ui_parameters={"persistAuthorization": True})
 
 app.add_middleware(

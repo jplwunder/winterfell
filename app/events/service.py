@@ -75,13 +75,15 @@ def create_event(
     "/{event_id}/addstaff/{user_id}",
     response_model=EventResponse,
     status_code=status.HTTP_200_OK,
+    dependencies=[
+        Depends(require_event_role(EventRole.admin)),
+        Depends(get_verified_user),
+    ],
 )
 async def add_staff(
     user_id: UUID,
     event_id: UUID,
     session: Annotated[Session, Depends(get_session)],
-    current_user: Annotated[User, Depends(require_event_role(EventRole.admin))],
-    require_verified: Annotated[User, Depends(get_verified_user)],
 ):
     event = session.exec(select(Event).where(Event.id == event_id)).first()
     if event is None:
@@ -118,7 +120,7 @@ async def add_staff(
     )
 
     message = create_message(
-        reciepients=[staff.email],
+        recipients=[staff.email],
         subject=f"Your Role in {event.name}",
         body=html_message,
     )
@@ -128,11 +130,15 @@ async def add_staff(
     return {"message": "Staff member added to event successfully", "event": event}
 
 
-@router.get("/", response_model=EventList, status_code=status.HTTP_200_OK)
+@router.get(
+    "/",
+    response_model=EventList,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(get_verified_user)],
+)
 def list_events(
     session: Annotated[Session, Depends(get_session)],
     current_user: Annotated[User, Depends(get_current_user)],
-    require_verified: Annotated[User, Depends(get_verified_user)],
 ):
     statement = (
         select(Event, Ticket.role)
@@ -147,6 +153,7 @@ def list_events(
             "date": event.date,
             "location": event.location,
             "description": event.description,
+            "price": event.price,
             "role": role,
         }
         for event, role in results
@@ -155,12 +162,7 @@ def list_events(
 
 
 @router.get("/{event_id}", response_model=Event, status_code=status.HTTP_200_OK)
-def read_event(
-    event_id: UUID,
-    session: Annotated[Session, Depends(get_session)],
-    current_user: Annotated[User, Depends(get_current_user)],
-    require_verified: Annotated[User, Depends(get_verified_user)],
-):
+def read_event(event_id: UUID, session: Annotated[Session, Depends(get_session)]):
     event = session.get(Event, event_id)
     if event is None:
         raise HTTPException(status_code=404, detail="Event not found")
@@ -168,14 +170,18 @@ def read_event(
 
 
 @router.post(
-    "/{event_id}", response_model=dict[str, str], status_code=status.HTTP_200_OK
+    "/{event_id}",
+    response_model=dict[str, str],
+    status_code=status.HTTP_200_OK,
+    dependencies=[
+        Depends(get_verified_user),
+        Depends(require_event_role(EventRole.admin)),
+    ],
 )
 def delete_event(
     event_id: UUID,
     session: Annotated[Session, Depends(get_session)],
     current_user: Annotated[User, Depends(get_current_user)],
-    require_verified: Annotated[User, Depends(get_verified_user)],
-    admin_check: Annotated[User, Depends(require_event_role(EventRole.admin))],
 ):
     statement = (
         select(Event)
@@ -195,13 +201,13 @@ def delete_event(
     "/{event_id}/check-in/{ticket_code}",
     response_model=CheckInResponse,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(get_verified_user)],
 )
 def check_in_attendee(
     event_id: UUID,
     ticket_code: str,
     session: Annotated[Session, Depends(get_session)],
     current_user: Annotated[User, Depends(get_current_user)],
-    require_verified: Annotated[User, Depends(get_verified_user)],
 ):
     attendee = session.exec(
         select(Ticket).where(
@@ -255,12 +261,12 @@ def check_in_attendee(
     "/{event_id}/cancel/{ticket_code}",
     response_model=TicketResponse,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(get_verified_user)],
 )
 def cancel_ticket(
     event_id: UUID,
     ticket_code: str,
     session: Annotated[Session, Depends(get_session)],
-    require_verified: Annotated[User, Depends(get_verified_user)],
     current_user: Annotated[User, Depends(get_current_user)],
 ):
     ticket = session.exec(
@@ -285,12 +291,12 @@ def cancel_ticket(
     "/{event_id}/check-in-logs",
     response_model=CheckInLogList,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(get_verified_user)],
 )
 def get_check_in_logs(
     event_id: UUID,
     session: Annotated[Session, Depends(get_session)],
     current_user: Annotated[User, Depends(get_current_user)],
-    require_verified: Annotated[User, Depends(get_verified_user)],
 ):
     if current_user.get_role(event_id) not in (EventRole.admin, EventRole.staff):
         raise HTTPException(

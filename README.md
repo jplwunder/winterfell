@@ -1,6 +1,6 @@
 # Winterfell
 
-Winterfell is an event management application built with **Python**, **FastAPI**, **SQLModel**, **SQLite**.
+Winterfell is an event management application built with **Python**, **FastAPI**, **SQLModel**, and **SQLite**.
 
 The project provides an API for managing users, events, tickets, event staff, attendee registration, authentication, and check-in operations.
 
@@ -10,16 +10,18 @@ The project provides an API for managing users, events, tickets, event staff, at
 
 ## Setup
 
+The project requires **Python 3.14 or newer**.
+
 Install `uv`:
 
-* MacOs / Linux
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+* macOS / Linux
+  ```bash
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  ```
 * Windows
-```bash
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
+  ```powershell
+  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+  ```
 
 Install the Python dependencies using `uv`:
 
@@ -31,10 +33,10 @@ The virtual environment is automatically managed by `uv`.
 
 ### Environment Variables
 
-Create a `.env` file
+Create a `.env` file from the example:
 
 ```bash
-touch .env
+cp .env.example .env
 ```
 
 Set these variables in your .env file
@@ -74,12 +76,11 @@ http://127.0.0.1:8000
 
 ---
 
-
 ## API Documentation
 
 FastAPI automatically generates interactive API documentation.
 
-After starting the backend, open:
+After starting the application, open:
 
 ```text
 http://127.0.0.1:8000/docs
@@ -87,7 +88,7 @@ http://127.0.0.1:8000/docs
 
 ## Running Tests
 
-From the `backend` directory, run all tests:
+From the repository root, run all tests:
 
 ```bash
 uv run pytest
@@ -117,13 +118,11 @@ uv run pytest --cov
 
 The API uses JWT-based authentication.
 
-Protected routes require a valid Bearer Token.
+Log in at `/auth/login` using form data with the user's email as `username` and
+the account password. The response contains a JWT access token.
 
-Example:
-
-```http
-Authorization: Bearer <token>
-```
+For protected routes, include the returned token in the `Authorization` header
+using the standard OAuth2 password-bearer format.
 
 ### Authentication flow
 
