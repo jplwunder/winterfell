@@ -75,7 +75,10 @@ def create_event(
     "/{event_id}/addstaff/{user_id}",
     response_model=EventResponse,
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(require_event_role(EventRole.admin)), Depends(get_verified_user)]
+    dependencies=[
+        Depends(require_event_role(EventRole.admin)),
+        Depends(get_verified_user),
+    ],
 )
 async def add_staff(
     user_id: UUID,
@@ -127,7 +130,12 @@ async def add_staff(
     return {"message": "Staff member added to event successfully", "event": event}
 
 
-@router.get("/", response_model=EventList, status_code=status.HTTP_200_OK, dependencies=[Depends(get_verified_user)])
+@router.get(
+    "/",
+    response_model=EventList,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(get_verified_user)],
+)
 def list_events(
     session: Annotated[Session, Depends(get_session)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -162,7 +170,13 @@ def read_event(event_id: UUID, session: Annotated[Session, Depends(get_session)]
 
 
 @router.post(
-    "/{event_id}", response_model=dict[str, str], status_code=status.HTTP_200_OK, dependencies=[Depends(get_verified_user), Depends(require_event_role(EventRole.admin))]
+    "/{event_id}",
+    response_model=dict[str, str],
+    status_code=status.HTTP_200_OK,
+    dependencies=[
+        Depends(get_verified_user),
+        Depends(require_event_role(EventRole.admin)),
+    ],
 )
 def delete_event(
     event_id: UUID,
@@ -187,7 +201,7 @@ def delete_event(
     "/{event_id}/check-in/{ticket_code}",
     response_model=CheckInResponse,
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(get_verified_user)]
+    dependencies=[Depends(get_verified_user)],
 )
 def check_in_attendee(
     event_id: UUID,
@@ -247,7 +261,7 @@ def check_in_attendee(
     "/{event_id}/cancel/{ticket_code}",
     response_model=TicketResponse,
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(get_verified_user)]
+    dependencies=[Depends(get_verified_user)],
 )
 def cancel_ticket(
     event_id: UUID,
@@ -277,7 +291,7 @@ def cancel_ticket(
     "/{event_id}/check-in-logs",
     response_model=CheckInLogList,
     status_code=status.HTTP_200_OK,
-    dependencies=[Depends(get_verified_user)]
+    dependencies=[Depends(get_verified_user)],
 )
 def get_check_in_logs(
     event_id: UUID,
