@@ -26,8 +26,10 @@ class PasswordChangeRequest(SQLModel, table=True):
     class ConfigDict:
         arbitrary_types_allowed = True
 
+
 class ForgotPasswordRequest(SQLModel):
     email: EmailStr = Field(index=True)
+
 
 class ResetPasswordRequest(SQLModel):
     token: str = Field(validation_alias=AliasChoices("token", "code"))

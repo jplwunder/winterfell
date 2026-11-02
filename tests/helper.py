@@ -92,6 +92,7 @@ def verify_code_help(client, email, code):
     )
     return response
 
+
 def password_change_request_help(client, email, mock_email_sender):
     response = client.post(
         "/auth/forgot_password",

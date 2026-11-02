@@ -47,6 +47,7 @@ def create_user_verification_code(email: str, session: Session) -> int:
     session.commit()
     return code
 
+
 def generate_verification_code_email(code: int) -> str:
     return f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -332,6 +333,7 @@ def generate_staff_added_email(
   </table>
 </body>
 </html>"""
+
 
 def generate_password_reset_email(link: str) -> str:
     return f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
